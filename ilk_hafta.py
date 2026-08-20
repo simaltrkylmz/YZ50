@@ -1,6 +1,4 @@
-
 #görev 1
-
 import math
 import matplotlib.pyplot as plt
 inputs= [0.7, 1.45, -0.85] #girdiler
@@ -77,8 +75,42 @@ weights[1][1]= original_weight #döngüden sonra weightin orijinal değerini ger
 #grafiği çizme
 plt.plot(test_weights, losses, label='Loss Eğrisi', color='purple')
 plt.title("Ağırlık Değişimine Göre Loss Değişimi")
-plt.xlabel("Ağırlık (weights[2][2])")
+plt.xlabel("Ağırlık")
 plt.ylabel("Loss (MSE)")
 plt.legend()
 plt.grid(True)
 plt.show()
+
+
+#görev5
+w=weights[1][1] #üzerinde çalışacağımız weight değerimiz
+h=0.0001 #w'yi arttıracağımız miktar
+learning_rate=0.4 #adım büyüklüğümüz (gradient ile çarpacağız, eğimimiz çok büyük çıksa bile bu onu düzeltecek.)
+steps=100 #adım sayımız
+loss_history=[] #loss'larımızı tutan liste
+
+for step in range(steps):
+    weights[1][1]=w
+    output1=forward_pass(inputs, weights, biases)
+    loss1=loss_function(targets,output1) #birinci loss hesaplamamız
+
+    weights[1][1]=w+h
+    output2=forward_pass(inputs, weights, biases)
+    loss2=loss_function(targets,output2) #ikinci loss hesaplamamız
+
+    gradient=(loss2-loss1)/h
+    w=w-(learning_rate*gradient) #eğim pozitifse loss fonksiyonu artıyor demektir, tersi yönde gitmeliyiz. O yüzden başında eksi var.
+
+    loss_history.append(loss1) #listemize loss'larımızı ekliyoruz.
+    print(f"Step {step}: w = {w:.6f}, loss = {loss1:.6f}")
+
+weights[1][1] = w  # son değeri kalıcı olarak kaydediyoruz
+
+plt.plot(loss_history, color='green') #grafik çizimi
+plt.title("Gradient Descent ile Loss Azalışı")
+plt.xlabel("Adım")
+plt.ylabel("Loss (MSE)")
+plt.grid(True)
+plt.show()
+
+
