@@ -35,6 +35,18 @@ print(outputs_layer)
 
 
 
+#görev3
+#loss fonksiyonu (mean squared error kullanılarak)
+targets=[1.0,1.0,0.0] #ulaşmak istediklerimiz
+def loss_function(targets,outputs_layer): #loss fonksiyonunu hesaplayan fonksiyonumuz
+    loss= 0
+    for target, output in zip(targets, outputs_layer): #iki listedeki elemanları gezmemizi sağlayan for döngüsü
+        loss+= ((target - output)**2) #ikisinin farkının karesi
+    loss/= len(targets) #en son çıkan toplam değerini eleman sayısına bölme
+    return loss
+print(loss_function(targets,outputs_layer))
+
+
 
 
 
