@@ -2,7 +2,7 @@
 #görev 1
 
 import math
-
+import matplotlib.pyplot as plt
 inputs= [0.7, 1.45, -0.85] #girdiler
 weights=[0.4, 0.6, 0.3] #ağırlıklar
 bias= 0.68 #biasımız
@@ -37,7 +37,7 @@ print(outputs_layer)
 
 #görev3
 #loss fonksiyonu (mean squared error kullanılarak)
-targets=[1.0,1.0,0.0] #ulaşmak istediklerimiz
+targets=[1.0,0.5,0.0] #ulaşmak istediklerimiz (görev 4teki grafiğin parabolik çıkması için 2. değeri 0.5 yaptım. (sınır değeri olmaması için))
 def loss_function(targets,outputs_layer): #loss fonksiyonunu hesaplayan fonksiyonumuz
     loss= 0
     for target, output in zip(targets, outputs_layer): #iki listedeki elemanları gezmemizi sağlayan for döngüsü
@@ -47,7 +47,38 @@ def loss_function(targets,outputs_layer): #loss fonksiyonunu hesaplayan fonksiyo
 print(loss_function(targets,outputs_layer))
 
 
+#görev4
+def forward_pass(inputs, weights, biases): #görev 1deki forward pass'i fonksiyon şeklinde yazıyoruz çünkü weighti değiştirdiğimizde tekrar kullanmamız gerekecek
+    outputs_layer = []
+    for weight,bias in zip(weights,biases): #görev 1de yazdığım for döngüsü (farklı olarak zip ile iki listeyi aynı anda aramayı kullandım)
+        summation=0
+        for x,w in zip (inputs, weight):
+            summation+= x*w
+        summation+=bias
+        outputs_layer.append(1/(1+math.exp(-summation)))
+    return outputs_layer
 
+original_weight = weights[1][1] #değiştireceğimiz weight değerinin orijinal değerini saklıyoruz
 
+test_weights = [] # x ekseni için boş liste
+losses = [] # y ekseni için boş liste
 
+for i in range (-50,51): #-5'ten 5'e kadar 0.1 artışla weight'i arttıran döngü
+    test_weight=i/10.0
+    weights[1][1]= test_weight
+    current_guess= forward_pass(inputs, weights, biases)
+    current_loss=loss_function(targets,current_guess)
+    print(f"Weight is: {test_weight} Loss is: {current_loss}")
+    test_weights.append(test_weight)
+    losses.append(current_loss)
 
+weights[1][1]= original_weight #döngüden sonra weightin orijinal değerini geri getiriyoruz
+
+#grafiği çizme
+plt.plot(test_weights, losses, label='Loss Eğrisi', color='purple')
+plt.title("Ağırlık Değişimine Göre Loss Değişimi")
+plt.xlabel("Ağırlık (weights[2][2])")
+plt.ylabel("Loss (MSE)")
+plt.legend()
+plt.grid(True)
+plt.show()
