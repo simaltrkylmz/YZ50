@@ -40,7 +40,7 @@ def loss_function(targets,outputs_layer): #loss fonksiyonunu hesaplayan fonksiyo
     loss= 0
     for target, output in zip(targets, outputs_layer): #iki listedeki elemanları gezmemizi sağlayan for döngüsü
         loss+= ((target - output)**2) #ikisinin farkının karesi
-    loss/= len(targets) #en son çıkan toplam değerini eleman sayısına bölme
+    loss/= len(outputs_layer) #en son çıkan toplam değerini eleman sayısına bölme
     return loss
 print(loss_function(targets,outputs_layer))
 
