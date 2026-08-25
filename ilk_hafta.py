@@ -1,4 +1,5 @@
 #görev 1
+#Görev tanımı: Python ile tek nöron forward pass yaz, kütüphane kullanmadan
 import math
 import matplotlib.pyplot as plt
 inputs= [0.7, 1.45, -0.85] #girdiler
@@ -14,6 +15,7 @@ output= 1/(1+math.exp(-summation))
 print(output)
 
 #görev2 birden fazla nöronlu katman
+#Görev tanımı: Birden fazla nörondan oluşan küçük bir katman kur, forward pass'i buna genişlet.
 # input değerlerim aynı kalıyor ama bir sonraki aşamada artık 3 nöronum olacak, o yüzden weight ve bias değerlerim her nöron için değişmeli
 inputs= [0.7, 1.45, -0.85] #girdiler
 weights=[[0.4, 0.6, 0.3],  #birinci nöron için weight değerleri
@@ -34,6 +36,7 @@ print(outputs_layer)
 
 
 #görev3
+#Görev tanımı: Basit bir loss fonksiyonu yaz
 #loss fonksiyonu (mean squared error kullanılarak)
 targets=[1.0,0.5,0.0] #ulaşmak istediklerimiz (görev 4teki grafiğin parabolik çıkması için 2. değeri 0.5 yaptım. (sınır değeri olmaması için))
 def loss_function(targets,outputs_layer): #loss fonksiyonunu hesaplayan fonksiyonumuz
@@ -46,6 +49,7 @@ print(loss_function(targets,outputs_layer))
 
 
 #görev4
+#Görev tanımı: Parametreleri manuel değiştirerek loss'un nasıl değiştiğini gözlemle, loss eğrisini çiz.
 def forward_pass(inputs, weights, biases): #görev 1deki forward pass'i fonksiyon şeklinde yazıyoruz çünkü weighti değiştirdiğimizde tekrar kullanmamız gerekecek
     outputs_layer = []
     for weight,bias in zip(weights,biases): #görev 1de yazdığım for döngüsü (farklı olarak zip ile iki listeyi aynı anda aramayı kullandım)
@@ -83,6 +87,7 @@ plt.show()
 
 
 #görev5
+#Görev tanımı: Sayısal türev (numerical derivative) ile basit bir gradient descent döngüsü kur: parametreyi küçük adımlarla güncelleyerek loss'u düşür.
 w=weights[1][1] #üzerinde çalışacağımız weight değerimiz
 h=0.0001 #w'yi arttıracağımız miktar
 learning_rate=0.4 #adım büyüklüğümüz (gradient ile çarpacağız, eğimimiz çok büyük çıksa bile bu onu düzeltecek.)
