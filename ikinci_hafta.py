@@ -36,6 +36,7 @@ class Value:
     def __init__(self, data, _children=(), _op='',label=''):
         self.data = data
         self.grad=0.0
+        self._backward = lambda: None #başta hiçbir şey yapmayan fonksiyon ekliyorz. görev3
         self._prev=set(_children)
         self._op=_op
         self.label=label
@@ -45,17 +46,63 @@ class Value:
 
     def __add__(self, other): #toplama için fonksiyon
         out= Value(self.data+other.data, (self,other),"+")
+
+        #görev 3 eklemesi
+        def _backward():
+            self.grad += 1.0 * out.grad
+            other.grad += 1.0 * out.grad
+            """bir node ağaçta birden fazla yere gidiyorsa toplayarak ilerlemeli.
+            mesela a=value(3.0). b=a+a. burada a hem self hem other. 
+            self.grad += 1.0 * out.grad   # a.grad: 0 → 1
+            other.grad += 1.0 * out.grad  # a.grad: 1 → 2 bu kısmı anlamak için yapay zekaya sordum."""
+        out._backward = _backward
         return out
 
     def __mul__(self, other): #çarpma için fonksiyon
         out= Value(self.data*other.data,(self,other),"*")
+
+        #görev 3 eklemesi
+        def _backward():
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
+        out._backward = _backward
         return out
 
     def tanh(self): #tanh fonksiyonu oluşturuyoruz
         x = self.data
         t = (math.exp(2 * x) - 1) / (math.exp(2 * x) + 1)
         out = Value(t, (self,), 'tanh')
+
+        #görev 3 eklemesi
+        def _backward():
+            self.grad += (1 - t ** 2) * out.grad
+            #total etki= yerel türev * üstten gelen etki
+        out._backward = _backward
         return out
+
+    #görev 3 eklemesi
+    def backward(self):
+
+        topo = [] #topological sort için boş liste
+        visited = set() #tekrar gezmemek için
+
+        #ağacı kökten uca arama
+        def build_topo(v):
+            if v not in visited:
+                visited.add(v)
+                for child in v._prev:
+                    build_topo(child)
+                topo.append(v)
+
+        #kendinden başlayarak haritayı oluşturma
+        build_topo(self)
+
+        #kendi türevini 1 yapıyoruz. L.grad=1 dediğimiz manuel ayarlama
+        self.grad = 1.0
+
+        #haritayı terse döndürüyoruz çünkü sondan başlamamız lazım ve hepsi için _backward fonksiyonunu çağırıyoruz
+        for node in reversed(topo):
+            node._backward()
 
 
 #daha rahat ayrılsın diye görevleri fonksiyon olarak tanımladım.
@@ -120,7 +167,7 @@ def gorev2_1():
 
 #görev 2'nin ikinci kısmı. yukarıdaki işlemi bir nöron için yapma
 def gorev2_2():
-#girdilerimiz
+    #girdilerimiz
     x1 = Value(2.0, label='x1')
     x2 = Value(0.0, label='x2')
 
@@ -159,17 +206,51 @@ def gorev2_2():
     w2.grad=x2.data * x2w2.grad
 
     #grafiği çizdiriyoruz
+
+
     grafik = draw_dot(o)
     grafik.render('grafikler/neuron_graph', view=True)
 
+def gorev3():
+    #backwardla otomatikleştirme
+    #görev 2nin ikinci kısmını otomatikleştirmek için yazdığımız backward fonkiyonunu kullanıyoruz.
+    # girdilerimiz
+    x1 = Value(2.0, label='x1')
+    x2 = Value(0.0, label='x2')
 
-gorev1()
+    # weightler
+    w1 = Value(-3.0, label='w1')
+    w2 = Value(1.0, label='w2')
+
+    # bias (Karpathy videoda bu değeri yazmıştı)
+    b = Value(6.8813735870195432, label='b')
+
+    # çarpıp toplama işlemi
+    x1w1 = x1 * w1;
+    x1w1.label = 'x1*w1'
+    x2w2 = x2 * w2;
+    x2w2.label = 'x2*w2'
+    x1w1x2w2 = x1w1 + x2w2;
+    x1w1x2w2.label = 'x1*w1 + x2*w2'
+    n = x1w1x2w2 + b;
+    n.label = 'n'  # nöronun bias eklenmiş hali
+
+    # sonucu -1 +1 arasına sıkıştırmak için tanh kullanıyoruz
+    o = n.tanh();
+    o.label = 'o'
+    #buraya kadar görev 2.2nin aynısıydı. şimdi elle yazmak yerine backward fonksiyonunu çağırıyoruz.
+    o.backward()
+    grafik = draw_dot(o)
+    grafik.render('grafikler/neuron_graph2', view=True)
+
+
+
+
+
+"""gorev1()
 gorev2_1()
-gorev2_2()
-
-
-#görev 3
-#backward fonksiyonu
+gorev2_2()"""
+gorev3()
 
 
 
