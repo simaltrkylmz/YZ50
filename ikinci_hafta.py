@@ -57,22 +57,26 @@ class Value:
         out = Value(t, (self,), 'tanh')
         return out
 
-"""a= Value(3.0,label="a")
-b= Value(-2.0,label="b")
-c=Value(5.0,label="c")
-e=a*b; e.label = "e"
-d=e+c; d.label = "d"
-print(d)
-print(a*b)
-# Grafiği oluşturmak için:
-grafik = draw_dot(d)
-# Grafiği klasöre 'computation_graph.svg' olarak kaydetip otomatik olarak ekranda açıyor
-grafik.render('computation_graph', view=True)"""
+
+#daha rahat ayrılsın diye görevleri fonksiyon olarak tanımladım.
+
+def gorev1():
+    a= Value(3.0,label="a")
+    b= Value(-2.0,label="b")
+    c=Value(5.0,label="c")
+    e=a*b; e.label = "e"
+    d=e+c; d.label = "d"
+    print(d)
+    print(a*b)
+    # Grafiği oluşturmak için:
+    grafik = draw_dot(d)
+    # Grafiği klasöre 'computation_graph.svg' olarak kaydetip otomatik olarak ekranda açıyor
+    grafik.render('grafikler/computation_graph', view=True)
 
 
 #görev2
 #gradienti önce elle hesaplama
-"""def grad_manuel_hesaplama():
+def gorev2_1():
     h=0.001 #çok ufak değişiklik yapacağımız değer
 
     a = Value(2.0, label="a")
@@ -111,54 +115,62 @@ grafik.render('computation_graph', view=True)"""
     #bunu aslında şöyle düşünebiliriz: formülümüz sigmoid*(a*w+b) idi. f sigmoid veya tanh, d= a*w + b.
     grafik = draw_dot(L)
     # Grafiği klasöre 'computation_graph1.svg' olarak kaydetip otomatik olarak ekranda açıyor
-    grafik.render('computation_graph1', view=True)
-
-grad_manuel_hesaplama()"""
+    grafik.render('grafikler/computation_graph2', view=True)
 
 
 #görev 2'nin ikinci kısmı. yukarıdaki işlemi bir nöron için yapma
-
+def gorev2_2():
 #girdilerimiz
-x1 = Value(2.0, label='x1')
-x2 = Value(0.0, label='x2')
+    x1 = Value(2.0, label='x1')
+    x2 = Value(0.0, label='x2')
 
-#weightler
-w1 = Value(-3.0, label='w1')
-w2 = Value(1.0, label='w2')
+    #weightler
+    w1 = Value(-3.0, label='w1')
+    w2 = Value(1.0, label='w2')
 
-#bias (Karpathy videoda bu değeri yazmıştı)
-b = Value(6.8813735870195432, label='b')
+    #bias (Karpathy videoda bu değeri yazmıştı)
+    b = Value(6.8813735870195432, label='b')
 
-#çarpıp toplama işlemi
-x1w1 = x1 * w1; x1w1.label = 'x1*w1'
-x2w2 = x2 * w2; x2w2.label = 'x2*w2'
-x1w1x2w2 = x1w1 + x2w2; x1w1x2w2.label = 'x1*w1 + x2*w2'
-n = x1w1x2w2 + b; n.label = 'n' #nöronun bias eklenmiş hali
+    #çarpıp toplama işlemi
+    x1w1 = x1 * w1; x1w1.label = 'x1*w1'
+    x2w2 = x2 * w2; x2w2.label = 'x2*w2'
+    x1w1x2w2 = x1w1 + x2w2; x1w1x2w2.label = 'x1*w1 + x2*w2'
+    n = x1w1x2w2 + b; n.label = 'n' #nöronun bias eklenmiş hali
 
-#sonucu -1 +1 arasına sıkıştırmak için tanh kullanıyoruz
-o = n.tanh(); o.label = 'o'
+    #sonucu -1 +1 arasına sıkıştırmak için tanh kullanıyoruz
+    o = n.tanh(); o.label = 'o'
 
-#back propagationa başlıyoruz. en sondan gidiyoruz. o'nun kendisinin grad'ı 1
-o.grad=1
-#sonra bir geride tanh var. onun türevi de 1-tan^2.
-n.grad=1-o.data**2
+    #back propagationa başlıyoruz. en sondan gidiyoruz. o'nun kendisinin grad'ı 1
+    o.grad=1
+    #sonra bir geride tanh var. onun türevi de 1-tan^2.
+    n.grad=1-o.data**2
 
-#bir geride + işlemi var. bu önceki grad'ı child node'lara dağıtıyor.
-b.grad= 1-o.data**2
-x1w1x2w2.grad=1-o.data**2
-#bunun da gerisinde yine + işlemi var. dağıtıyoruz
-x1w1.grad= 1-o.data**2
-x2w2.grad=1-o.data**2
-#bunun gerisinde * var. çarparak gideceğiz. o yüzden önce x1 w1 x2 w2nin local gradlerine ihtiyacımız var. önceki örnekte de gördüğümüz gibi birbirleri çıkıyor.
-#bu yüzden bu local gradle çarparak hepsinin genel gradini bulmuş oluyoruz.
-x1.grad=w1.data * x1w1.grad
-x2.grad=w2.data * x2w2.grad
-w1.grad=x1.data * x1w1.grad
-w2.grad=x2.data * x2w2.grad
+    #bir geride + işlemi var. bu önceki grad'ı child node'lara dağıtıyor.
+    b.grad= 1-o.data**2
+    x1w1x2w2.grad=1-o.data**2
+    #bunun da gerisinde yine + işlemi var. dağıtıyoruz
+    x1w1.grad= 1-o.data**2
+    x2w2.grad=1-o.data**2
+    #bunun gerisinde * var. çarparak gideceğiz. o yüzden önce x1 w1 x2 w2nin local gradlerine ihtiyacımız var. önceki örnekte de gördüğümüz gibi birbirleri çıkıyor.
+    #bu yüzden bu local gradle çarparak hepsinin genel gradini bulmuş oluyoruz.
+    x1.grad=w1.data * x1w1.grad
+    x2.grad=w2.data * x2w2.grad
+    w1.grad=x1.data * x1w1.grad
+    w2.grad=x2.data * x2w2.grad
 
-# Grafiği çizdirıyoruz
-grafik = draw_dot(o)
-grafik.render('neuron_graph', view=True)
+    #grafiği çizdiriyoruz
+    grafik = draw_dot(o)
+    grafik.render('grafikler/neuron_graph', view=True)
+
+
+gorev1()
+gorev2_1()
+gorev2_2()
+
+
+#görev 3
+#backward fonksiyonu
+
 
 
 
