@@ -1,3 +1,4 @@
+import random
 import math
 import torch #görev 4 eklemesi
 #görev 1'i ve 2'yi graphviz ile çizdirme
@@ -141,6 +142,8 @@ class Value:
 
 #daha rahat ayrılsın diye görevleri fonksiyon olarak tanımladım.
 
+
+#Value sınıfını yazdım. hangi işlemden çıktıklarını saklıyor.
 def gorev1():
     a= Value(3.0,label="a")
     b= Value(-2.0,label="b")
@@ -389,10 +392,75 @@ def gorev4_dogrulama(): #backward fonksiyonuyla hesapladığımız gradyanları 
 #gorev4()
 #gorev4_dogrulama()
 
-gorev1()
-gorev2_1()
-gorev2_2()
-gorev3()
-gorev4()
-gorev4_dogrulama()
+
+def gorev5():
+    class Neuron:
+
+        def __init__(self, nin):  # nin: number of inputs
+
+            self.w = [Value(random.uniform(-1, 1)) for i in
+                      range(nin)]  # -1 ile 1 arasında değişen değerlerden oluşan weights listesi
+
+            self.b = Value(random.uniform(-1, 1))  # -1 ile 1 arasında değişen bias değeri
+
+        def __call__(self, x):
+            act = self.b
+
+            for wi, xi in zip(self.w, x):
+                act += xi * wi
+            out = act.tanh()
+            return out
+
+        def parameters(self):
+            return self.w + [self.b]
+
+    class Layer:
+
+        def __init__(self, nin, nout):  # nout: number of outputs
+            self.neurons=[Neuron(nin) for i in range (nout)]
+
+        def __call__(self, x):
+            outs=[n(x) for n in self.neurons]
+            return outs[0] if len(outs) == 1 else outs
+
+        def parameters(self):
+            params=[]
+            for n in self.neurons:
+                params+=n.parameters() #append liste içinde liste oluşturacağı için onu kullanmadım.
+            return params
+
+    class MLP: #multi layer perceptron
+
+        def __init__(self, nin, nouts):
+            sz= [nin] + nouts
+            self.layers=[Layer(sz[i],sz[i+1]) for i in range (len(nouts))]
+
+        def __call__(self, x):
+            for layer in self.layers:
+                x=layer(x)
+            return x
+
+        def parameters(self):
+            params=[]
+            for layer in self.layers:
+                params+=layer.parameters()
+            return params
+    x=[2.0, 3.0, -1.0]
+    n=MLP(3,[4,4,1])
+    grafik = draw_dot(n(x))
+    grafik.render('grafikler/mlpgraph', view=True)
+
+
+gorev5()
+
+
+
+
+
+
+
+
+
+
+
 
