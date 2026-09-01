@@ -445,10 +445,11 @@ def gorev5():
             for layer in self.layers:
                 params+=layer.parameters()
             return params
-
-    """grafik = draw_dot(n(x))
-    grafik.render('grafikler/mlpgraph', view=True)"""
+    """x=[2.0, 3.0, -1.0]
     n=MLP(3,[4,4,1])
+    grafik = draw_dot(n(x))
+    grafik.render('grafikler/mlpgraph', view=True)"""
+
     xs = [
         [2.0, 3.0, -1.0],
         [3.0, -1.0, 0.5],
@@ -457,14 +458,27 @@ def gorev5():
     ]
     ys = [1.0, -1.0, -1.0, 1.0]  # Ağdan bulmasını istediğimiz doğru cevaplar
     n = MLP(3, [4, 4, 1])
-    ypred=[n(x) for x in xs]
-    loss_sum = sum((yout - ygt) ** 2 for ygt, yout in zip(ys, ypred))
 
-    for ygt, yout in zip (ys, ypred):
-        loss= (yout - ygt)**2
-        print (loss.data)
+    for k in range(20):
+        #forward pass
+        ypred = [n(x) for x in xs]
+        loss = sum((yout - ygt) ** 2 for ygt, yout in zip(ys, ypred))
 
-    print("Güncel Hata (Loss):", loss_sum.data)
+        #gradientları sıfırlama
+        for p in n.parameters():
+            p.grad = 0.0
+
+        #backward pass
+        loss.backward()
+
+        #ağırlıkları güncelleme
+        for p in n.parameters():
+            p.data += -0.02 * p.grad
+
+        #her adımdaki hesaplanan loss'u yazdırma
+        print(f"Adım {k} - Loss: {loss.data}")
+
+
 
 gorev5()
 
