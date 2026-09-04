@@ -14,6 +14,7 @@ summation+=bias #döngü sonunda bias değerini hesaplıyor
 output= 1/(1+math.exp(-summation))
 print(output)
 
+
 #görev2 birden fazla nöronlu katman
 #Görev tanımı: Birden fazla nörondan oluşan küçük bir katman kur, forward pass'i buna genişlet.
 # input değerlerim aynı kalıyor ama bir sonraki aşamada artık 3 nöronum olacak, o yüzden weight ve bias değerlerim her nöron için değişmeli
@@ -32,7 +33,6 @@ for i, weight in enumerate(weights): #weights iç içe listesinin iç listeleri 
     summation+=bias
     outputs_layer.append(1/(1+math.exp(-summation))) #output değerlerini hesaplayıp outputs_layer listesine ekliyor
 print(outputs_layer)
-
 
 
 #görev3
@@ -117,5 +117,3 @@ plt.xlabel("Adım")
 plt.ylabel("Loss (MSE)")
 plt.grid(True)
 plt.show()
-
-
