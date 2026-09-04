@@ -43,7 +43,7 @@ for w in (words):
         N[stoi[ch1],stoi[ch2]]+=1 #tekrar eden ikililerde kutucuğun değerini 1 arttırıyoruz
 
 #görselleştirme
-plt.figure(figsize=(16, 16)) # 16x16 inçlik dev bir tuval aç
+"""plt.figure(figsize=(16, 16)) # 16x16 inçlik dev bir tuval aç
 plt.imshow(N, cmap='Blues')  # matrisi Mavi (Blues) tonlarıyla renklendir
 
 # tablonun içindeki 27x27 = 729 kutucuğun hepsini tek tek geziyoruz
@@ -55,5 +55,28 @@ for i in range(27):
         # sayıları kutunun altına yazma
         plt.text(j, i, N[i, j].item(), ha="center", va="top", color='gray')
 plt.axis('off') #kenardaki ekran çizgilerini gizleme
-plt.show()      #tabloyu ekrana getirme
+plt.show()      #tabloyu ekrana getirme"""
 
+#görev 2
+#satır satır olasılıklara çevirme
+P=N.float() / N.sum(dim=1, keepdim=True) #keepdim yapmazsak sağdan başlayarak sütunlara böler ve sessiz ama çok büyük hata alırız.
+print(P.sum(dim=1))
+
+#yeni isimler örnekleme
+
+g = torch.Generator().manual_seed(2147483647) #videodaki değeri girdim ama çıktılar aynı olmadı. ai'a sordum, pytorch versiyonuyla ilgilidir dedi.
+#generator'da aynı g'yi döngüde tekrar tekrar verdiğim için her seferinde aynı çıktıyı aldım.
+for i in range(5):
+    out=[]
+    ix=0
+    while True:
+        # multinomial bize olasılıklarla orantılı çıktılar verir. yüksek olasılıklı olanlar daha sık çıkar.
+        ix=torch.multinomial(P[ix], num_samples=1, replacement=True, generator=g).item() #bir tane sayı veriyor. o anda aldığını da torbaya geri koyuyor (replacement=True ile).
+        out.append(itos[ix])
+        if ix==0: #. karakterine gelince döngüden çıkıyor. çünkü o son karakterimiz.
+            break
+    print(''.join(out))
+
+"""test = torch.tensor([0.7, 0.2, 0.1]) #multinomial'ı daha iyi anlamak için örnek kod
+for _ in range(10):
+    print(torch.multinomial(test, num_samples=1).item())"""
