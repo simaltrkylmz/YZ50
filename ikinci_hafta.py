@@ -385,12 +385,6 @@ def gorev4_dogrulama(): #backward fonksiyonuyla hesapladığımız gradyanları 
 
     print(f"w1'in gradyanı: {num_grad}")
 
-#gorev1()
-#gorev2_1()
-#gorev2_2()
-#gorev3()
-#gorev4()
-#gorev4_dogrulama()
 
 
 def gorev5():
@@ -478,18 +472,10 @@ def gorev5():
         #her adımdaki hesaplanan loss'u yazdırma
         print(f"Adım {k} - Loss: {loss.data}")
 
-
-
+gorev1()
+gorev2_1()
+gorev2_2()
+gorev3()
+gorev4()
+gorev4_dogrulama()
 gorev5()
-
-
-
-
-
-
-
-
-
-
-
-
