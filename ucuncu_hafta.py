@@ -3,6 +3,9 @@ import torch
 import matplotlib.pyplot as plt
 
 #görev 1: bigram modelini anlamak ve veri setindeki kelimelerden harf ikililerini elde edip sayaç oluşturmak
+print("""-----------------------
+        Görev 1
+-----------------------""")
 url = "https://raw.githubusercontent.com/karpathy/makemore/master/names.txt"
 urllib.request.urlretrieve(url, "names.txt") #karpathy'nin isim listesini indirme
 
@@ -58,6 +61,9 @@ plt.axis('off') #kenardaki ekran çizgilerini gizleme
 plt.show()      #tabloyu ekrana getirme"""
 
 #görev 2
+print("""-----------------------
+        Görev 2
+-----------------------""")
 #satır satır olasılıklara çevirme
 P=N.float() / N.sum(dim=1, keepdim=True) #keepdim yapmazsak sağdan başlayarak sütunlara böler ve sessiz ama çok büyük hata alırız.
 print(P.sum(dim=1))
@@ -80,3 +86,26 @@ for i in range(5):
 """test = torch.tensor([0.7, 0.2, 0.1]) #multinomial'ı daha iyi anlamak için örnek kod
 for _ in range(10):
     print(torch.multinomial(test, num_samples=1).item())"""
+
+#görev 3
+print("""-----------------------
+        Görev 3
+-----------------------""")
+#negative log likelihood ve smoothing
+#smoothing
+P = (N + 1).float() / (N + 1).sum(dim=1, keepdim=True) #matristeki her sayıya 1 ekleyerek smoothing yapıyoruz.
+log_likelihood=0
+n=0
+for w in (words[:5]):
+    chs= ['.'] + list(w) + ['.']
+    for ch1,ch2 in zip(chs,chs[1:]): #bigram elde etme (ilk görevdekinin çok benzeri)
+        ix1=stoi[ch1] #ilk karakteri integer'a çevirme
+        ix2=stoi[ch2] #ikinci karakteri integer'a çevirme
+        prob=P[ix1,ix2]
+        log_likelihood+= torch.log(prob) #bu bigramın log olasılığını topluyoruz.
+        n+=1 #kaç bigram işlediğimizi sayıyoruz
+n11=-log_likelihood #işaretini değiştiriyoruz. 0 ile 1 arasında log negatif çıkar. biz de düşürmeye çalıştığımız loss fonk istiyoruz. o yüzden eksi.
+final_loss=n11/n #ortalamayı hesaplıyoruz. veri boyutundan bağımsız, karşılaştırılabilir tek bir sayı elde etmek için.
+print(final_loss.item()) #değer 2.454.. küsür bir sayı çıkıyor.
+
+
