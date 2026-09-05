@@ -1,6 +1,8 @@
 import urllib.request
 import torch
 import matplotlib.pyplot as plt
+import torch.nn.functional as F
+
 
 #görev 1: bigram modelini anlamak ve veri setindeki kelimelerden harf ikililerini elde edip sayaç oluşturmak
 print("""-----------------------
@@ -60,6 +62,7 @@ for i in range(27):
 plt.axis('off') #kenardaki ekran çizgilerini gizleme
 plt.show()      #tabloyu ekrana getirme"""
 
+
 #görev 2
 print("""-----------------------
         Görev 2
@@ -87,6 +90,7 @@ for i in range(5):
 for _ in range(10):
     print(torch.multinomial(test, num_samples=1).item())"""
 
+
 #görev 3
 print("""-----------------------
         Görev 3
@@ -104,8 +108,59 @@ for w in (words[:5]):
         prob=P[ix1,ix2]
         log_likelihood+= torch.log(prob) #bu bigramın log olasılığını topluyoruz.
         n+=1 #kaç bigram işlediğimizi sayıyoruz
-n11=-log_likelihood #işaretini değiştiriyoruz. 0 ile 1 arasında log negatif çıkar. biz de düşürmeye çalıştığımız loss fonk istiyoruz. o yüzden eksi.
-final_loss=n11/n #ortalamayı hesaplıyoruz. veri boyutundan bağımsız, karşılaştırılabilir tek bir sayı elde etmek için.
+nll=-log_likelihood #işaretini değiştiriyoruz. 0 ile 1 arasında log negatif çıkar. biz de düşürmeye çalıştığımız loss fonk istiyoruz. o yüzden eksi.
+final_loss=nll/n #ortalamayı hesaplıyoruz. veri boyutundan bağımsız, karşılaştırılabilir tek bir sayı elde etmek için.
 print(final_loss.item()) #değer 2.454.. küsür bir sayı çıkıyor.
+
+
+#görev 4
+print("""-----------------------
+        Görev 4
+-----------------------""")
+
+#girdi ve çıktı listelerini
+xs=[] #girdilerimiz: aslında bir önceki harf
+ys=[] #çıktılarımız: tahmin etmesini istediğimiz yani bir sonraki harf
+for w in words:
+    chs= ['.'] + list(w) + ['.']
+    for ch1,ch2 in zip(chs,chs[1:]):
+        ix1 = stoi[ch1]  # ilk karakteri integer'a çevirme
+        ix2 = stoi[ch2]  # ikinci karakteri integer'a çevirme
+        xs.append(ix1)
+        ys.append(ix2)
+xs=torch.tensor(xs)
+ys=torch.tensor(ys)
+num = xs.nelement() #xs'deki eleman sayısı
+
+xenc = F.one_hot(xs, num_classes=27).float() #xs'deki her indexi one-hot vektöre çeviriyor: vektörün sadece ilgili harfe denk gelen pozisyonu 1, kalanlar 0
+
+g = torch.Generator().manual_seed(2147483647) #rastgele başlatılıyor
+W = torch.randn((27, 27), generator=g, requires_grad=True) #ağırlık matrisi, rastgele değerlerle. (gradient'ı istediğimizi belirtiyoruz)
+# W'yu daha iyi anlamak için ai'a sordum: "ix harfinden sonra her bir harfin ne kadar olası olduğuna dair, henüz normalize edilmemiş bir tercih puanı" dedi.
+
+for k in range(100):
+
+    # forward pass: girdiden loss'a kadar
+    logits = xenc @ W                          # ham skorlar (matris çarpımı)
+    counts = logits.exp()                       # negatifleri pozitife çeviriyor: W negatif de üretebiliyor.
+    probs = counts / counts.sum(dim=1, keepdim=True)  # softmax: matris çarpımı+exp+normalize etme
+
+    #nll loss
+    # probs[i, ys[i]]: i. örnekte, gerçek hedef harfe modelin verdiği olasılık
+    loss = -probs[torch.arange(num), ys].log().mean() #torch.arange aslında range ile aynı. farkı arange'in tensor üretmesi.
+    #torch.arange(num) bize bütün satırları gezmeyi sağlıyor. her birinde de ys'in söylediği sütuna bakıyor. döngüsüz yazabiliyoruz.
+    loss = loss + 0.01 * (W**2).mean() #W'nun büyük sayılara gitmesini engelliyor. W büyürse loss'a eklendiği için model hem W'yu küçük tutmaya çalışır hem de veriye uygun olmaya çalışır. overconfident olmaz.
+    #görev 3'teki smoothing'in W versiyonu. sınır olmazsa model agresif davranır, hiç görmediği bigram'a 0 verebilir.
+
+    print(k, loss.item())
+    # backward pass
+    W.grad = None    #her backward'tan önce gradient'ı sıfırlıyoruz. birikerek ilerlemesin diye.
+    loss.backward()
+
+    W.data += -60 * W.grad    # gradient descent ile güncelleme
+
+    
+
+
 
 
