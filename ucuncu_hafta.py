@@ -48,7 +48,7 @@ for w in (words):
         N[stoi[ch1],stoi[ch2]]+=1 #tekrar eden ikililerde kutucuğun değerini 1 arttırıyoruz
 
 #görselleştirme
-"""plt.figure(figsize=(16, 16)) # 16x16 inçlik dev bir tuval aç
+plt.figure(figsize=(16, 16)) # 16x16 inçlik dev bir tuval aç
 plt.imshow(N, cmap='Blues')  # matrisi Mavi (Blues) tonlarıyla renklendir
 
 # tablonun içindeki 27x27 = 729 kutucuğun hepsini tek tek geziyoruz
@@ -60,7 +60,7 @@ for i in range(27):
         # sayıları kutunun altına yazma
         plt.text(j, i, N[i, j].item(), ha="center", va="top", color='gray')
 plt.axis('off') #kenardaki ekran çizgilerini gizleme
-plt.show()      #tabloyu ekrana getirme"""
+plt.show()      #tabloyu ekrana getirme
 
 
 #görev 2
@@ -100,7 +100,7 @@ print("""-----------------------
 P = (N + 1).float() / (N + 1).sum(dim=1, keepdim=True) #matristeki her sayıya 1 ekleyerek smoothing yapıyoruz.
 log_likelihood=0
 n=0
-for w in (words[:5]):
+for w in (words):
     chs= ['.'] + list(w) + ['.']
     for ch1,ch2 in zip(chs,chs[1:]): #bigram elde etme (ilk görevdekinin çok benzeri)
         ix1=stoi[ch1] #ilk karakteri integer'a çevirme
@@ -118,7 +118,7 @@ print("""-----------------------
         Görev 4
 -----------------------""")
 
-#girdi ve çıktı listelerini
+#girdi ve çıktı listeleri
 xs=[] #girdilerimiz: aslında bir önceki harf
 ys=[] #çıktılarımız: tahmin etmesini istediğimiz yani bir sonraki harf
 for w in words:
@@ -133,17 +133,16 @@ ys=torch.tensor(ys)
 num = xs.nelement() #xs'deki eleman sayısı
 
 xenc = F.one_hot(xs, num_classes=27).float() #xs'deki her indexi one-hot vektöre çeviriyor: vektörün sadece ilgili harfe denk gelen pozisyonu 1, kalanlar 0
-
 g = torch.Generator().manual_seed(2147483647) #rastgele başlatılıyor
 W = torch.randn((27, 27), generator=g, requires_grad=True) #ağırlık matrisi, rastgele değerlerle. (gradient'ı istediğimizi belirtiyoruz)
 # W'yu daha iyi anlamak için ai'a sordum: "ix harfinden sonra her bir harfin ne kadar olası olduğuna dair, henüz normalize edilmemiş bir tercih puanı" dedi.
 
-for k in range(100):
+for k in range(300):
 
     # forward pass: girdiden loss'a kadar
     logits = xenc @ W                          # ham skorlar (matris çarpımı)
     counts = logits.exp()                       # negatifleri pozitife çeviriyor: W negatif de üretebiliyor.
-    probs = counts / counts.sum(dim=1, keepdim=True)  # softmax: matris çarpımı+exp+normalize etme
+    probs = counts / counts.sum(dim=1, keepdim=True)  # softmax: exp+normalize etme
 
     #nll loss
     # probs[i, ys[i]]: i. örnekte, gerçek hedef harfe modelin verdiği olasılık
@@ -152,15 +151,133 @@ for k in range(100):
     loss = loss + 0.01 * (W**2).mean() #W'nun büyük sayılara gitmesini engelliyor. W büyürse loss'a eklendiği için model hem W'yu küçük tutmaya çalışır hem de veriye uygun olmaya çalışır. overconfident olmaz.
     #görev 3'teki smoothing'in W versiyonu. sınır olmazsa model agresif davranır, hiç görmediği bigram'a 0 verebilir.
 
-    print(k, loss.item())
+
     # backward pass
     W.grad = None    #her backward'tan önce gradient'ı sıfırlıyoruz. birikerek ilerlemesin diye.
     loss.backward()
 
-    W.data += -60 * W.grad    # gradient descent ile güncelleme
+    W.data += -50 * W.grad    # gradient descent ile güncelleme
+print(f"Son adımda hesaplanan loss: {loss.item()}")
 
-    
+#görev 5
+print("""-----------------------
+        Görev 5
+-----------------------""")
+#türkçe isimlerle çalışma
+
+#açık kaynaklı bir github listesini aldım.
+url = "https://gist.githubusercontent.com/emrekgn/b4049851c88e328c065a/raw/"
+urllib.request.urlretrieve(url, "turkce_isimler.txt")
+raw_lines = open('turkce_isimler.txt', 'r', encoding='utf-8').read().splitlines()
 
 
+words = []
+for line in raw_lines:
+    w = line.strip()  #başındaki ve sonundaki boşlukları temizliyor
+
+    w = w.replace('I', 'ı').replace('İ', 'i').lower() #asıl sorun büyük i ve ı harflerinin küçük harfe çevrilmesindeydi. onu manuel düzeltiyoruz.
+
+    if w.isalpha() and len(w) > 0: #veri temizleme: sadece harflerden oluşuyorsa ve uzunluğu 0'dan büyükse listeye ekliyoruz. birleşik isimleri eliyoruz.
+        words.append(w)
+
+print(f"Toplam temizlenmiş Türkçe isim sayısı: {len(words)}.\n")
+
+chars = sorted(set(''.join(words))) #alfabemizi oluşturuyoruz.
+stoi={} #string to integer için başta boş dictionary
+stoi['.']=0 #0. indexi nokta yapma
+for sayi, harf in enumerate(chars): #a'yı 1, b'yi 2... şeklinde her harfe sayı değeri atama
+    stoi[harf]=sayi+1
+print(stoi)
+
+itos={} #integer to string için başta boş dictionary
+for harf,sayi in stoi.items(): #yukarıdakinin tam tersi, 0'a nokta, 1'e a... atama
+    itos[sayi]=harf
+print(itos)
+alphabet_size=len(itos)
+
+print(f"Alfabenin boyutu: {alphabet_size} karakter")
+print("Alfabe:", ''.join(chars))
 
 
+# sayım modeliyle lss hesabı
+print("\nSayım modeli:")
+
+N = torch.zeros((alphabet_size, alphabet_size), dtype=torch.int32) #her yerde 27x27 yerine alphabet size kullandım ki otomatik olsun.
+
+for w in words:
+    chs = ['.'] + list(w) + ['.']
+    for ch1, ch2 in zip(chs, chs[1:]):
+        N[stoi[ch1], stoi[ch2]] += 1
+
+#görev 3'ün aynısı
+
+#negative log likelihood ve smoothing
+#smoothing
+P = (N + 1).float() / (N + 1).sum(dim=1, keepdim=True) #matristeki her sayıya 1 ekleyerek smoothing yapıyoruz.
+log_likelihood=0
+n=0
+for w in (words):
+    chs= ['.'] + list(w) + ['.']
+    for ch1,ch2 in zip(chs,chs[1:]): #bigram elde etme (ilk görevdekinin çok benzeri)
+        ix1=stoi[ch1] #ilk karakteri integer'a çevirme
+        ix2=stoi[ch2] #ikinci karakteri integer'a çevirme
+        prob=P[ix1,ix2]
+        log_likelihood+= torch.log(prob) #bu bigramın log olasılığını topluyoruz.
+        n+=1 #kaç bigram işlediğimizi sayıyoruz
+nll=-log_likelihood #işaretini değiştiriyoruz. 0 ile 1 arasında log negatif çıkar. biz de düşürmeye çalıştığımız loss fonk istiyoruz. o yüzden eksi.
+final_loss=nll/n #ortalamayı hesaplıyoruz. veri boyutundan bağımsız, karşılaştırılabilir tek bir sayı elde etmek için.
+print(f"Sayım modeliyle loss'umuz: {final_loss.item()}")
+
+#sinir ağıyla loss hesabı
+xs, ys = [], []
+for w in words:
+    chs = ['.'] + list(w) + ['.']
+    for ch1, ch2 in zip(chs, chs[1:]):
+        xs.append(stoi[ch1])
+        ys.append(stoi[ch2])
+xs = torch.tensor(xs)
+ys = torch.tensor(ys)
+num = xs.nelement()
+
+xenc = F.one_hot(xs, num_classes=alphabet_size).float()
+g = torch.Generator().manual_seed(2147483647)
+W = torch.randn((alphabet_size, alphabet_size), generator=g, requires_grad=True)
+
+for k in range(200):  #öğrenme adımını biraz arttırdım. kalanı görev 4'ün aynısı
+    logits = xenc @ W
+    counts = logits.exp()
+    probs = counts / counts.sum(dim=1, keepdim=True)
+
+    final_loss2 = -probs[torch.arange(num), ys].log().mean() + 0.01 * (W ** 2).mean()
+
+    W.grad = None
+    final_loss2.backward()
+    W.data += -60 * W.grad
+
+print(f"Sinir ağıyla hesaplanan loss değeri: {final_loss2.item()}\n")
+
+
+#yeni türkçe isimler üretme
+def turkce_buyuk_ilk_harf(s): #eğer ilk harf i ise onu büyütürken I yerine İ yapmasını manuel ayarlıyoruz.
+    if s and s[0] == 'i':
+        return 'İ' + s[1:]
+    return s.capitalize()
+
+print("Sinir ağının ürettiği Türkçe isimler:")
+
+for i in range(10):
+    out = []
+    ix = 0
+    while True:
+        # her adımda, o anki harfi (ix) tekrar one-hot'a çeviriyoruz
+        xenc_sample = F.one_hot(torch.tensor([ix]), num_classes=alphabet_size).float()
+        # eğitim sırasında yaptığımız forward pass'in birebir aynısı, tek bir harf için
+        logits_sample = xenc_sample @ W
+        counts_sample = logits_sample.exp()
+        p_sample = counts_sample / counts_sample.sum(dim=1, keepdim=True)
+
+        ix = torch.multinomial(p_sample, num_samples=1, replacement=True, generator=g).item()
+        out.append(itos[ix])
+        if ix == 0:
+            break
+    print(turkce_buyuk_ilk_harf(''.join(out)))
