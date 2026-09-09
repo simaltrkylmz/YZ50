@@ -2,6 +2,9 @@ import torch
 
 
 #görev 1
+print("""-----------------------
+        Görev 1
+-----------------------""")
 
 #geçen haftayla aynı
 words = open('names.txt', 'r').read().splitlines()
