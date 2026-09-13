@@ -185,7 +185,7 @@ plt.show()
 print("-Asıl eğitim-")
 parameters, C, W1, b1, W2, b2 = init_parameters()  #gerçek eğitim için ağırlıkları son kez sıfırlıyoruz
 
-for i in range(10000):
+for i in range(50000):
     ix = torch.randint(0, Xtr.shape[0], (32,)) #tüm kelimeleri aynı anda sormak yerine eğitim setinden rastgele 32 tane çekiyoruz
 
     #forward pass
@@ -201,8 +201,8 @@ for i in range(10000):
     loss.backward()
 
     #ağırlıkları güncelleme
-    #ilk 5000 adımda hızlı gidiyor, sonrasında hedefe yaklaşınca ince ayar için adımlarını küçültüyoruz (lr decay- hız düşürme)
-    lr = 0.1 if i < 5000 else 0.01
+    #ilk 100000 adımda hızlı gidiyor, sonrasında hedefe yaklaşınca ince ayar için adımlarını küçültüyoruz (lr decay- hız düşürme)
+    lr = 0.1 if i < 25000 else 0.01
     for p in parameters: p.data += -lr * p.grad
 
 print(f"Eğitim sonu Train Loss: {loss.item():.4f}")
@@ -215,7 +215,81 @@ dev_loss = F.cross_entropy(logits, Ydev)
 print(f"Dev Seti Üzerindeki Gerçek Hata (Dev Loss): {dev_loss.item():.4f}")
 
 
+#görev 4
+print("""-----------------------
+        Görev 4
+-----------------------""")
+
+#-2 boyutlu embedding haritasını çizme-
+#görev 3'teki C matrisini kullanıyoruz.
+plt.figure(figsize=(8, 8))
+plt.scatter(C[:, 0].data, C[:, 1].data, s=200)
+for i in range(C.shape[0]):
+    plt.text(C[i, 0].item(), C[i, 1].item(), itos[i], ha="center", va="center", color='white')
+plt.grid('minor')
+plt.title("Yapay Zekanın Kendi Kendine Öğrendiği Harf Haritası")
+plt.show()
 
 
+#modeli büyütme: daha büyük embedding ve daha fazla hidden layer
+emb_dim = 10  #harfleri 2 sayıyla değil, 10 sayıyla ifade ediyoruz
+hidden_size = 200  #nöron sayısını 100'den 200'e çıkarıyoruz
 
+g = torch.Generator().manual_seed(2147483647)
+C_large = torch.randn((vocab_size, emb_dim), generator=g)
+W1_large = torch.randn((block_size * emb_dim, hidden_size), generator=g)  # 3 harf * 10 boyut = 30 girdi
+b1_large = torch.randn(hidden_size, generator=g)
+W2_large = torch.randn((hidden_size, vocab_size), generator=g)
+b2_large = torch.randn(vocab_size, generator=g)
+
+parameters_large = [C_large, W1_large, b1_large, W2_large, b2_large]
+for p in parameters_large:
+    p.requires_grad = True
+
+# Büyük modelle asıl eğitim (daha zeki olması için adım sayısını 30.000 yapıyoruz)
+for i in range(30000):
+    ix = torch.randint(0, Xtr.shape[0], (32,))
+    emb = C_large[Xtr[ix]]
+    h = torch.tanh(emb.view(-1, block_size * emb_dim) @ W1_large + b1_large)
+    logits = h @ W2_large + b2_large
+    loss = F.cross_entropy(logits, Ytr[ix])
+
+    for p in parameters_large: p.grad = None
+    loss.backward()
+
+    lr = 0.1 if i < 20000 else 0.01
+    for p in parameters_large: p.data += -lr * p.grad
+
+#gelişmiş modelin dev loss'u
+emb_dev = C_large[Xdev]
+h_dev = torch.tanh(emb_dev.view(-1, block_size * emb_dim) @ W1_large + b1_large)
+logits_dev = h_dev @ W2_large + b2_large
+dev_loss_large = F.cross_entropy(logits_dev, Ydev)
+print(f"Büyütülmüş (10D Embedding, 200 Nöron) Dev Loss: {dev_loss_large.item():.4f}")
+
+#isimler örnekleme
+print("\n-Yeni modelin ürettiği isimler-")
+g = torch.Generator().manual_seed(2147483647 + 10)
+
+for _ in range(10):
+    out = []
+    context = [0] * block_size  # '...' ile başlıyoruz
+    while True:
+        #seçili bağlamın embedding'ini çekip ağdan geçiriyoruz
+        emb = C_large[torch.tensor([context])]
+        h = torch.tanh(emb.view(1, -1) @ W1_large + b1_large)
+        logits = h @ W2_large + b2_large
+        probs = F.softmax(logits, dim=1)
+
+        #sonraki harfi seçiyor
+        ix = torch.multinomial(probs, num_samples=1, generator=g).item()
+
+        #kayan pencereyi bir adım ileri kaydırıyoruz
+        context = context[1:] + [ix]
+        out.append(ix)
+
+        if ix == 0:  #noktaya ulaştığında duruyor
+            break
+
+    print(''.join(itos[i] for i in out[:-1]))
 
