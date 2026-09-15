@@ -37,13 +37,17 @@ Y = torch.tensor(Y)
 
 print(f"X'in şekli: {X.shape} (örnek sayısı, 3 harf)")
 print(f"Y'nin şekli: {Y.shape} (örnek sayısı)")
+print(X.data)
+print(Y.data)
 
 #embedding tablosu
 # 27 harfin her birini 2 boyutlu (x, y) bir koordinatla başlatıyoruz
 g = torch.Generator().manual_seed(2147483647)
 C = torch.randn((27, 2), generator=g)
 
-#X'in içindeki bütün indekslerin 2 boyutlu karşılıklarını C'den çekiyoruz.
+#C 27 harfin her biri için rastgele başlatılmış 2 boyutlu vektör tutan tablo
+
+#X'in içindeki her sayı için (yani her bağlamdaki her 3 harf için), C'nin o harfe denk gelen satırını çekiyoruz
 emb = C[X]
 
 print(f"Embedding şekli: {emb.shape} (örnek sayısı, 3 harf, 2 boyut)")
@@ -67,7 +71,7 @@ b2 = torch.randn(27, generator=g)
 # -1 sebebi: şu anda 32 yazdık ama ileride veri setindeki tüm kelimeleri kullanmaya karar verdiğimizde model çökerdi. -1 bilgisayara "ikinci boyut 6 olsun, ilk boyutu da toplam veri miktarına bakarak hesapla." diyor.
 h = torch.tanh(emb.view(-1, 6) @ W1 + b1) # gizli katman + tanh
 logits = h @ W2 + b2                      # çıkış katmanı (ham skor olarak)
-#sırayla matris boyutları: [32,6], bunu W1 ile çarpınca [32,100], bunu da W2 ile çarpınca [32.27]
+#sırayla matris boyutları: [32,6], bunu W1 ile çarpınca [32,100], bunu da W2 ile çarpınca [32,27]
 
 #loss hesaplaması: elle ve pytorch ile
 #elle hesaplama (geçen hafta)
@@ -133,7 +137,7 @@ parameters, C, W1, b1, W2, b2 = init_parameters()
 ix = torch.randint(0, Xtr.shape[0], (32,))  # Sadece 32 örnek çekiyoruz
 Xb, Yb = Xtr[ix], Ytr[ix]
 
-for i in range(1000):  #aynı veriyi 1000 kere eğitiyoruz
+for i in range(200):  #aynı veriyi 200 kere eğitiyoruz
     emb = C[Xb]
     h = torch.tanh(emb.view(-1, 6) @ W1 + b1)
     logits = h @ W2 + b2
@@ -201,7 +205,7 @@ for i in range(50000):
     loss.backward()
 
     #ağırlıkları güncelleme
-    #ilk 100000 adımda hızlı gidiyor, sonrasında hedefe yaklaşınca ince ayar için adımlarını küçültüyoruz (lr decay- hız düşürme)
+    #ilk 25000 adımda hızlı gidiyor, sonrasında hedefe yaklaşınca ince ayar için adımlarını küçültüyoruz (lr decay- hız düşürme)
     lr = 0.1 if i < 25000 else 0.01
     for p in parameters: p.data += -lr * p.grad
 
@@ -292,4 +296,40 @@ for _ in range(10):
             break
 
     print(''.join(itos[i] for i in out[:-1]))
+
+
+#görev 5
+print("""-----------------------
+        Görev 5
+-----------------------""")
+
+
+print("-Başlangıçtaki loss'un yüksek olması")
+
+#rastgele, büyük başlangıç değerleri
+g = torch.Generator().manual_seed(2147483647)
+C = torch.randn((vocab_size, emb_dim), generator=g)
+W1 = torch.randn((block_size * emb_dim, hidden_size), generator=g)
+b1 = torch.randn(hidden_size, generator=g)
+W2 = torch.randn((hidden_size, vocab_size), generator=g)
+b2 = torch.randn(vocab_size, generator=g)
+
+#rastgele bir minibatch çekimi
+ix = torch.randint(0, Xtr.shape[0], (32,), generator=g)
+emb = C[Xtr[ix]]
+
+#forward pass
+hpreact = emb.view(-1, block_size * emb_dim) @ W1 + b1 #ham veriler
+h = torch.tanh(hpreact)                                #tanh'tan çıkmış veriler
+logits = h @ W2 + b2
+loss = F.cross_entropy(logits, Ytr[ix])
+
+print(f"Yüksek loss: {loss.item():.4f}")
+print("olması gereken loss 3.29 civarıdır, ama şu an bundan çok yüksek.")
+
+#ölü nöronlar
+plt.figure(figsize=(8, 5))
+plt.hist(h.view(-1).tolist(), bins=50, color='#CBAACB')
+plt.title("tanh doygunluğu (-1 ve 1'e yığılan ölü nöronlar)")
+plt.show()
 
