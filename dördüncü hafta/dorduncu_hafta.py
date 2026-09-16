@@ -304,7 +304,12 @@ print("""-----------------------
 -----------------------""")
 
 
-print("-Başlangıçtaki loss'un yüksek olması")
+print("-Başlangıçtaki loss'un yüksek olması-")
+
+emb_dim = 10
+hidden_size = 200
+vocab_size = 27
+block_size = 3
 
 #rastgele, büyük başlangıç değerleri
 g = torch.Generator().manual_seed(2147483647)
@@ -333,3 +338,34 @@ plt.hist(h.view(-1).tolist(), bins=50, color='#CBAACB')
 plt.title("tanh doygunluğu (-1 ve 1'e yığılan ölü nöronlar)")
 plt.show()
 
+
+print("\n-Kaiming init ile tedavi etme-")
+
+g = torch.Generator().manual_seed(2147483647)
+C = torch.randn((vocab_size, emb_dim), generator=g)
+
+#kaiming formülü
+fan_in = block_size * emb_dim #içeri giren kablo sayısı
+
+# W1'i Kaiming katsayısı ile ölçekliyoruz: (5/3) / karekök(fan_in)
+W1 = torch.randn((fan_in, hidden_size), generator=g) * (5/3) / (fan_in ** 0.5)
+b1 = torch.randn(hidden_size, generator=g) * 0.01 #bias'ı ufaltıyoruz
+
+# W2'yi küçültüyoruz, b2'yi de sıfır yapıyoruz ki başlangıçta çok yüksek olmasın
+W2 = torch.randn((hidden_size, vocab_size), generator=g) * 0.01
+b2 = torch.randn(vocab_size, generator=g) * 0
+
+#forward pass
+emb = C[Xtr[ix]]
+hpreact = emb.view(-1, block_size * emb_dim) @ W1 + b1
+h = torch.tanh(hpreact)
+logits = h @ W2 + b2
+loss = F.cross_entropy(logits, Ytr[ix])
+
+print(f"tedavi sonrası loss değeri: {loss.item():.4f}")
+
+#düzeltilmiş histogram
+plt.figure(figsize=(8, 5))
+plt.hist(h.view(-1).tolist(), bins=50, color='#CBAACB')
+plt.title("Kaiming sonrası ortada toplanan nöronlar")
+plt.show()
