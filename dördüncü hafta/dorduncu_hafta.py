@@ -472,3 +472,146 @@ def split_loss(split):
 
 split_loss('train')
 split_loss('val')
+
+
+#görev 7
+print("""-----------------------
+        Görev 7
+-----------------------""")
+
+def gorev_7():
+
+    raw_lines = open('turkce_isimler.txt', 'r', encoding='utf-8').read().splitlines()
+    words = []
+    for line in raw_lines:
+        w = line.strip()  #başındaki ve sonundaki boşlukları temizliyor
+        w = w.replace('I', 'ı').replace('İ',
+                                        'i').lower()  #asıl sorun büyük i ve ı harflerinin küçük harfe çevrilmesindeydi. onu manuel düzeltiyoruz.
+        if w.isalpha() and len(
+                w) > 0:  #veri temizleme: sadece harflerden oluşuyorsa ve uzunluğu 0'dan büyükse listeye ekliyoruz. birleşik isimleri eliyoruz.
+            words.append(w)
+
+    chars = sorted(list(set(''.join(words))))
+    stoi = {s: i + 1 for i, s in enumerate(chars)}
+    stoi['.'] = 0
+    itos = {i: s for s, i in stoi.items()}
+    vocab_size = len(itos)
+
+    block_size = 3  #önceki 3 harfe bakarak tahmin yapacak
+
+    def build_dataset(words):
+        X, Y = [], []
+        for w in words:
+            context = [0] * block_size
+            for ch in w + '.':
+                ix = stoi[ch]
+                X.append(context)
+                Y.append(ix)
+                context = context[1:] + [ix]  #kayan pencereyi 1 adım ileri kaydırıyoruz
+        return torch.tensor(X), torch.tensor(Y)
+
+    random.seed(42)
+    random.shuffle(words)
+    n1 = int(0.8 * len(words))
+    n2 = int(0.9 * len(words))
+
+    Xtr, Ytr = build_dataset(words[:n1])
+    Xdev, Ydev = build_dataset(words[n1:n2])
+    Xte, Yte = build_dataset(words[n2:])
+
+    emb_dim = 10
+    hidden_size = 100
+    batch_size = 32
+    max_steps = 10000
+
+    g = torch.Generator().manual_seed(2147483647)
+    C = torch.randn((vocab_size, emb_dim), generator=g)
+
+    # kaiming init ile w1
+    W1 = torch.randn((block_size * emb_dim, hidden_size), generator=g) * (5 / 3) / ((block_size * emb_dim) ** 0.5)
+
+    # w2yi küçültüp b2yi sıfırlıyoruz ki loss düşük başlasın
+    W2 = torch.randn((hidden_size, vocab_size), generator=g) * 0.01
+    b2 = torch.randn(vocab_size, generator=g) * 0
+
+    # batchnorm parametreleri
+    bngain = torch.ones((1, hidden_size))
+    bnbias = torch.zeros((1, hidden_size))
+    bnmean_running = torch.zeros((1, hidden_size))
+    bnstd_running = torch.ones((1, hidden_size))
+
+    parameters = [C, W1, W2, b2, bngain, bnbias]
+    for p in parameters:
+        p.requires_grad = True
+
+    for i in range(max_steps):
+        ix = torch.randint(0, Xtr.shape[0], (batch_size,), generator=g)
+        Xb, Yb = Xtr[ix], Ytr[ix]
+
+        emb = C[Xb]
+        embcat = emb.view(emb.shape[0], -1)
+        hpreact = embcat @ W1
+
+        bnmeani = hpreact.mean(0, keepdim=True)
+        bnstdi = hpreact.std(0, keepdim=True)
+        hpreact = bngain * (hpreact - bnmeani) / bnstdi + bnbias
+
+        with torch.no_grad():
+            bnmean_running = 0.999 * bnmean_running + 0.001 * bnmeani
+            bnstd_running = 0.999 * bnstd_running + 0.001 * bnstdi
+
+        h = torch.tanh(hpreact)
+        logits = h @ W2 + b2
+        loss = F.cross_entropy(logits, Yb)
+
+        for p in parameters:
+            p.grad = None
+        loss.backward()
+
+        lr = 0.1 if i < 5000 else 0.01
+        for p in parameters:
+            p.data += -lr * p.grad
+
+    @torch.no_grad()
+    def split_loss(split):
+        x, y = {'train': (Xtr, Ytr), 'val': (Xdev, Ydev)}[split]
+        emb = C[x]
+        embcat = emb.view(emb.shape[0], -1)
+        hpreact = embcat @ W1
+
+        # test yaparken running mean kullanıyoruz
+        hpreact = bngain * (hpreact - bnmean_running) / bnstd_running + bnbias
+
+        h = torch.tanh(hpreact)
+        logits = h @ W2 + b2
+        loss = F.cross_entropy(logits, y)
+        print(f"{split} loss: {loss.item():.4f}")
+
+    split_loss('train')
+    split_loss('val')
+
+    print("\nüretilen isimler:")
+    g = torch.Generator().manual_seed(2147483647 + 10)
+
+    for _ in range(10):
+        out = []
+        context = [0] * block_size
+        while True:
+            emb = C[torch.tensor([context])]
+            embcat = emb.view(1, -1)
+            hpreact = embcat @ W1
+            hpreact = bngain * (hpreact - bnmean_running) / bnstd_running + bnbias
+            h = torch.tanh(hpreact)
+            logits = h @ W2 + b2
+
+            probs = F.softmax(logits, dim=1)
+            ix = torch.multinomial(probs, num_samples=1, generator=g).item()
+
+            context = context[1:] + [ix]
+            out.append(ix)
+
+            if ix == 0:
+                break
+
+        print(''.join(itos[i] for i in out[:-1]).capitalize())
+gorev_7()
