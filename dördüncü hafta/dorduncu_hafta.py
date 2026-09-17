@@ -331,6 +331,8 @@ loss = F.cross_entropy(logits, Ytr[ix])
 
 print(f"Yüksek loss: {loss.item():.4f}")
 print("olması gereken loss 3.29 civarıdır, ama şu an bundan çok yüksek.")
+print('beklenen (uniform) loss:', -torch.log(torch.tensor(1/27)).item())
+print('doymus (|h|>0.99) oran:', (h.abs() > 0.99).float().mean().item() * 100, '%')
 
 #ölü nöronlar
 plt.figure(figsize=(8, 5))
@@ -363,9 +365,110 @@ logits = h @ W2 + b2
 loss = F.cross_entropy(logits, Ytr[ix])
 
 print(f"tedavi sonrası loss değeri: {loss.item():.4f}")
+print('doymus (|h|>0.99) oran:', (h.abs() > 0.99).float().mean().item() * 100, '%')
+
 
 #düzeltilmiş histogram
 plt.figure(figsize=(8, 5))
 plt.hist(h.view(-1).tolist(), bins=50, color='#CBAACB')
 plt.title("Kaiming sonrası ortada toplanan nöronlar")
 plt.show()
+
+
+#görev 6
+print("""-----------------------
+        Görev 6
+-----------------------""")
+
+#batchnorm
+vocab_size = 27
+emb_dim = 10
+block_size = 3
+hidden_size = 100
+batch_size = 32
+max_steps = 10000
+
+C  = torch.randn((vocab_size, emb_dim), generator=g)
+W1 = torch.randn((block_size * emb_dim, hidden_size), generator=g) * (5/3) / ((block_size * emb_dim)**0.5) # Kaiming
+W2 = torch.randn((hidden_size, vocab_size), generator=g) * 0.01
+b2 = torch.randn(vocab_size, generator=g) * 0
+#b1 artık yok
+
+
+bngain = torch.ones((1, hidden_size))  #başlangıçta çarpım 1 (etkisiz)
+bnbias = torch.zeros((1, hidden_size)) #başlangıçta toplama 0 (etkisiz)
+
+#arka planda not alma
+bnmean_running = torch.zeros((1, hidden_size))
+bnstd_running = torch.ones((1, hidden_size))
+
+parameters = [C, W1, W2, b2, bngain, bnbias]
+for p in parameters:
+    p.requires_grad = True
+
+#eğitim döngüsü
+for i in range(max_steps):
+    #torbadan rastgele 32'li minibatch çekme
+    ix = torch.randint(0, Xtr.shape[0], (batch_size,), generator=g)
+    Xb, Yb = Xtr[ix], Ytr[ix]
+
+    #forward pass
+    emb = C[Xb]
+    embcat = emb.view(emb.shape[0], -1)
+
+    #hidden layer çarpımı (b1 yok)
+    hpreact = embcat @ W1
+
+    #batchnorm (eğitim sırasında)
+    bnmeani = hpreact.mean(0, keepdim=True)
+    bnstdi = hpreact.std(0, keepdim=True)
+    hpreact = bngain * (hpreact - bnmeani) / bnstdi + bnbias
+
+    #backward pass'e dahil olmaması için no_grad içinde. not defteri tutma kısmı (geçmişin %99.9'u şimdikinin %0.01..'i)
+    with torch.no_grad():
+        bnmean_running = 0.999 * bnmean_running + 0.001 * bnmeani
+        bnstd_running = 0.999 * bnstd_running + 0.001 * bnstdi
+
+    #aktivasyon ve tahmin
+    h = torch.tanh(hpreact)
+    logits = h @ W2 + b2
+    loss = F.cross_entropy(logits, Yb)
+
+    #backward pass ve güncelleme
+    for p in parameters:
+        p.grad = None
+    loss.backward()
+
+    #lr ayarı (ilk 5000 adım hızlı, sonra yavaş)
+    lr = 0.1 if i < 5000 else 0.01
+    for p in parameters:
+        p.data += -lr * p.grad
+
+print(f"Eğitim Sonu Minibatch Loss: {loss.item():.4f}")
+
+
+#değerlendirme döngüsü (train,val)
+@torch.no_grad()  #test yaparken modeli eğitmediğimiz için gradient hesaplanmaz
+def split_loss(split):
+    x, y = {
+        'train': (Xtr, Ytr),
+        'val': (Xdev, Ydev),
+    }[split]
+
+    emb = C[x]
+    embcat = emb.view(emb.shape[0], -1)
+    hpreact = embcat @ W1
+
+    #tahmin sırasında batchnorm
+    #burada .mean() veya .std() kullanmıyoruz.
+    #onun yerine eğitimde doldurduğumuz running_mean ve running_std kullanıyoruz.
+    hpreact = bngain * (hpreact - bnmean_running) / bnstd_running + bnbias
+
+    h = torch.tanh(hpreact)
+    logits = h @ W2 + b2
+    loss = F.cross_entropy(logits, y)
+    print(f"{split} Loss: {loss.item():.4f}")
+
+
+split_loss('train')
+split_loss('val')
