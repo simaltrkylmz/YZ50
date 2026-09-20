@@ -420,12 +420,12 @@ for i in range(max_steps):
     hpreact = embcat @ W1
 
     #batchnorm (eğitim sırasında)
-    bnmeani = hpreact.mean(0, keepdim=True)
-    bnstdi = hpreact.std(0, keepdim=True)
-    hpreact = bngain * (hpreact - bnmeani) / bnstdi + bnbias
+    bnmeani = hpreact.mean(0, keepdim=True) #her nöron için o 32 örneğin ortalamasını hesaplar. (1,100) çıktımız olur.
+    bnstdi = hpreact.std(0, keepdim=True) #aynı işlem std için.
+    hpreact = bngain * (hpreact - bnmeani) / bnstdi + bnbias #hpreact içindeki her sayıdan mean'i çıkarıyor ve std'e bölüyor. 1'lerden oluşan bngain ile çarpıp 0'lardan oluşan bnbias ile topluyor.
 
     #backward pass'e dahil olmaması için no_grad içinde. not defteri tutma kısmı (geçmişin %99.9'u şimdikinin %0.01..'i)
-    with torch.no_grad():
+    with torch.no_grad(): #gradyan hesabına dahil etmeden sadece sayıları güncellemek için
         bnmean_running = 0.999 * bnmean_running + 0.001 * bnmeani
         bnstd_running = 0.999 * bnstd_running + 0.001 * bnstdi
 
@@ -463,6 +463,7 @@ def split_loss(split):
     #burada .mean() veya .std() kullanmıyoruz.
     #onun yerine eğitimde doldurduğumuz running_mean ve running_std kullanıyoruz.
     hpreact = bngain * (hpreact - bnmean_running) / bnstd_running + bnbias
+    #çünkü test aşamasında modele 32li paket değil tek bir kelime verebiliriz. onun da kendi içinde ortalaması vs. olmaz.
 
     h = torch.tanh(hpreact)
     logits = h @ W2 + b2
