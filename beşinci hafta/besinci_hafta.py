@@ -73,18 +73,18 @@ def cmp(s, dt, t):
 emb = C[Xb]
 embcat = emb.view(emb.shape[0], -1)
 
-hpreact = embcat @ W1 + b1
+hprebn = embcat @ W1 + b1
 
 #batchnorm adımları
-bnmeani = hpreact.mean(0, keepdim=True) #32 örneğin ortalaması
-bndiff = hpreact - bnmeani #her veriden ortalamayı çıkarıyoruz.
+bnmeani = hprebn.mean(0, keepdim=True) #32 örneğin ortalaması
+bndiff = hprebn - bnmeani #her veriden ortalamayı çıkarıyoruz.
 bndiff2 = bndiff**2
 bnvar = 1/(n-1)*(bndiff2).sum(0, keepdim=True) #/n-1: bessel's correction
 bnvar_inv = (bnvar + 1e-5)**-0.5 #çarpma bilgisayarda daha hızlı olduğu için genelde bölme için tersini alıp çarparız.
 bnraw = bndiff * bnvar_inv #sıfıra merkezlenmiş veriyi standart sapmaya bölüyoruz.
-hpreact_fast = bngain * bnraw + bnbias #modele esneklik sağlamak için saf verimizi modelin kendi kendine eğitebildiği bngain (genişletme) ile çarpıp bnbias (kaydırma) ile topluyoruz.
+hpreact = bngain * bnraw + bnbias #modele esneklik sağlamak için saf verimizi modelin kendi kendine eğitebildiği bngain (genişletme) ile çarpıp bnbias (kaydırma) ile topluyoruz.
 
-h = torch.tanh(hpreact_fast)
+h = torch.tanh(hpreact)
 logits = h @ W2 + b2
 
 #cross entropy adımları
@@ -103,8 +103,8 @@ for p in parameters:
 
 #bütün ara adımları hafızada tutması için uyarıyoruz
 for t in [logprobs, probs, counts_sum_inv, counts_sum, counts,
-          norm_logits, logit_maxes, logits, h, hpreact_fast,
-          bnraw, bnvar_inv, bnvar, bndiff2, bndiff, bnmeani, hpreact, embcat, emb]:
+          norm_logits, logit_maxes, logits, h, hpreact,
+          bnraw, bnvar_inv, bnvar, bndiff2, bndiff, bnmeani, hprebn, embcat, emb]:
     t.retain_grad()
 
 loss.backward()
@@ -151,7 +151,76 @@ cmp('logit_maxes', dlogit_maxes, logit_maxes)
 #logit_maxes = logits.max(1, keepdim=True).values
 #sadece en yüksek değerli harfi içeri alıyoruz, kalanların etkisi yok.
 dlogits= 1 * dnorm_logits
+#sadece en yüksek olan değeri alıp üstten gelen türevle çarpıyoruz
 dlogits+= F.one_hot(logits.max(1).indices, num_classes=logits.shape[1])*dlogit_maxes
 cmp('logits', dlogits,logits)
 
+#logits = h @ W2 + b2
+#batchnorm kısmı
+dh = dlogits @ W2.T
+dW2 = h.T @ dlogits
+db2=dlogits.sum(0) #bu sefer yan yana değil yukarıdan aşağıya toplayarak bir satıra indiriyoruz.
+cmp('h', dh, h)
+cmp('W2', dW2, W2)
+cmp('b2', db2, b2)
 
+#h = torch.tanh(hpreact)
+#tanh'ın türevi 1- tanh(x)**2'dir. burada tanh(x)'i zaten h olarak yazdık
+dhpreact= (1.0-h**2)*dh
+cmp('hpreact', dhpreact,hpreact)
+
+#hpreact = bngain * bnraw + bnbias
+dbnbias=dhpreact.sum(0,keepdim=True)
+dbngain=(bnraw*dhpreact).sum(0,keepdim=True)
+dbnraw=bngain*dhpreact #bnraw zaten 32 satırlık tablo olduğu için broadcasting yok
+cmp('bnbias', dbnbias,bnbias)
+cmp('bngain', dbngain,bngain)
+cmp('bnraw', dbnraw,bnraw)
+
+#bnraw = bndiff * bnvar_inv
+dbnvar_inv=(bndiff*dbnraw).sum(0,keepdim=True)
+cmp('bnvar_inv', dbnvar_inv, bnvar_inv)
+
+#bnvar_inv = (bnvar + 1e-5)**-0.5
+dbnvar= (-0.5 *(bnvar+1e-5)**-1.5) * dbnvar_inv
+cmp('bnvar', dbnvar,bnvar)
+
+#bnvar = 1/(n-1)*(bndiff2).sum(0, keepdim=True) (1/n-1 burada sabitimiz: bessel's correction)
+dbndiff2= (1.0/(n-1))*torch.ones_like(bndiff2)*dbnvar #toplamanın yerel türevi 1'dir.
+cmp('bndiff2', dbndiff2,bndiff2)
+
+#bndiff2 = bndiff**2
+#bnraw = bndiff * bnvar_inv (bndiff iki yerde kullanılıyor.)
+dbndiff=2*bndiff*dbndiff2
+dbndiff+= bnvar_inv*dbnraw
+cmp('bndiff', dbndiff,bndiff)
+
+#bndiff = hprebn - bnmeani
+#bnmeani = hprebn.mean(0, keepdim=True): bu aslında 1/n * hprebn.sum demek
+dbnmeani= (-dbndiff).sum(0, keepdim=True) #forward pass'te bnmeani bir satırlık ortalamaydı ama 32 satırlık hprebn için 32 kere kopyalandı.
+cmp('bnmeani', dbnmeani,bnmeani)
+
+dhprebn= 1*dbndiff
+dhprebn+=(1.0/n) * torch.ones_like(hprebn)*dbnmeani
+cmp('hprebn', dhprebn,hprebn)
+
+#hprebn = embcat @ W1 + b1
+db1=dhprebn.sum(0)
+dW1=embcat.T@dhprebn
+dembcat=dhprebn@W1.T
+cmp('b1',db1,b1)
+cmp('W1',dW1,W1)
+cmp('embcat', dembcat, embcat)
+
+#emb = C[Xb]
+#embcat = emb.view(emb.shape[0], -1)
+#burada emb matrisinin boyutunu değiştirmiştik. şimdi onu eski haline döndürüyoruz.
+demb=dembcat.view(emb.shape)
+cmp('emb',demb,emb)
+
+dC=torch.zeros_like(C)
+for k in range(Xb.shape[0]):
+    for j in range(Xb.shape[1]):
+        ix=Xb[k,j]
+        dC[ix]+=demb[k,j]
+cmp('C', dC,C)
