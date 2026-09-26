@@ -218,7 +218,7 @@ cmp('embcat', dembcat, embcat)
 demb=dembcat.view(emb.shape)
 cmp('emb',demb,emb)
 
-dC=torch.zeros_like(C)
+dC=torch.zeros_like(C) #C şeklinde boş tensor
 for k in range(Xb.shape[0]):
     for j in range(Xb.shape[1]):
         ix=Xb[k,j]
