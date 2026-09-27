@@ -124,6 +124,7 @@ dprobs= (1.0/probs) * dlogprobs #dloss/dprobs= (dloss/dlogprobs) * (dlogprobs/dp
 cmp("probs", dprobs,probs)
 
 #probs = counts * counts_sum_inv
+#counts_sum_inv boyutu (32,1)'di, forward pass'te bu işlemde (32,27)'ye genişletilir.
 dcounts_sum_inv= (counts * dprobs).sum(1, keepdim=True)
 #forward pass'te counts_sum_inv 30 harfe de etki etmesi için pytorch tarafından 32x30 boyutuna genişletiliyor. bu yüzden geri dönerken 30 farklı koldan gelen etkiyi tek sütunda topluyoruz.
 cmp("counts_sum_inv", dcounts_sum_inv,counts_sum_inv)
