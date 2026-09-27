@@ -158,6 +158,7 @@ cmp('logits', dlogits,logits)
 
 #logits = h @ W2 + b2
 #batchnorm kısmı
+#h:(32,200), W2:(200,27), logits:(32,27)
 dh = dlogits @ W2.T
 dW2 = h.T @ dlogits
 db2=dlogits.sum(0) #bu sefer yan yana değil yukarıdan aşağıya toplayarak bir satıra indiriyoruz.
