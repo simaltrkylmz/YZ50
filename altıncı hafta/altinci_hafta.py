@@ -12,9 +12,8 @@ itos = {i: s for s, i in stoi.items()}
 vocab_size = len(itos)  # 27
 
 #X ve Y veri setini kurma
-block_size = 3 #bağlam penceresi: önceki 3 harf
+block_size = 3 #bağlam penceresi
 def build_dataset(words_list):
-    block_size = 3
     X, Y = [], []
     for w in words_list:
         context = [0] * block_size
@@ -146,7 +145,7 @@ class Sequential:
 #eğitim
 vocab_size = 27
 n_embd = 10
-n_hidden = 100
+n_hidden = 200
 block_size = 3
 
 #model tek bir Sequential kutusu oldu. eğitim döngüsü içeride ne olduğunu bilmiyor.
@@ -161,6 +160,7 @@ model = Sequential([
 
 #tüm parametreleri bir araya toplayıp gradient hesabına açıyoruz.
 parameters = model.parameters()
+print(sum(p.nelement() for p in parameters)) # Toplam parametre sayısını yazdırır
 for p in parameters:
     p.requires_grad = True
 
@@ -190,9 +190,10 @@ for i in range(max_steps):
         p.data -= lr * p.grad
 
     #her 10000 adımda bir yazdırıyoruz
-    if i % 10000 == 0:
-        print(f'{i:7d}/{max_steps:7d}: {loss.item():.4f}')
+    """if i % 10000 == 0:
+        print(f'{i:7d}/{max_steps:7d}: {loss.item():.4f}')"""
     lossi.append(loss.item()) #loss'ları ekliyoruz
+print(loss.item())
 
 #loss eğrisi çizimini düzeltme
 plt.plot(torch.tensor(lossi).view(-1, 1000).mean(1))
@@ -200,6 +201,8 @@ plt.title("Eğitim Kaybı (Training Loss)")
 plt.show()
 
 
+#modelleri karşılaştırmak için her modelin aynı koşulda ölçülmüş loss'u olmalı.
+#bu yüzden bütün veri setine bakıyoruz, rastgele tek bir minibatch'a değil.
 @torch.no_grad()
 def split_loss(split):
     x, y = {'train': (Xtr, Ytr), 'dev': (Xdev, Ydev), 'test': (Xte, Yte)}[split]
@@ -214,5 +217,20 @@ def split_loss(split):
 split_loss('train')
 split_loss('dev')
 
+"""görev 1 çıktısı: 
+loss: 1.735083818435669 (bir minibatch'in)
+train 2.0629498958587646
+dev 2.352025270462036"""
+
+#görev 2: bağlamı 3 harften 8 harfe çıkarıyoruz
+"""görev 2 çıktısı:
+print(sum(p.nelement() for p in parameters)) : 22097 
+parametre sayısı 10000 arttı.
+Flatten katmanının çıktısı 3*10'dan 8*10'a yükseldi. ilk Linear katmanının ağırlık matrisi de 30x200 boyutundan 80x200'e genişledi. 
+Bu 50 ek girişin her biri 200 nörona bağlandığı için 10000 yeni parametre eklenmiş oldu.
+loss: 1.7623770236968994 (bir minibatch'in)
+train 1.881604552268982
+dev 2.2543022632598877
+"""
 
 
