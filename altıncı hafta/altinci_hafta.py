@@ -9,10 +9,10 @@ chars = sorted(list(set(''.join(words))))
 stoi = {s: i + 1 for i, s in enumerate(chars)}
 stoi['.'] = 0
 itos = {i: s for s, i in stoi.items()}
-vocab_size = len(itos)  # 27
+vocab_size = len(itos) # 27
 
 #X ve Y veri setini kurma
-block_size = 3 #bağlam penceresi
+block_size = 8 #bağlam penceresi
 def build_dataset(words_list):
     X, Y = [], []
     for w in words_list:
@@ -33,18 +33,18 @@ random.shuffle(words_shuffled) #sözlükteki isimler sıralı olduğu için onla
 n1 = int(0.8 * len(words))
 n2 = int(0.9 * len(words))
 
-Xtr, Ytr = build_dataset(words[:n1])
-Xdev, Ydev = build_dataset(words[n1:n2])
-Xte, Yte = build_dataset(words[n2:])
+Xtr, Ytr = build_dataset(words_shuffled[:n1])
+Xdev, Ydev = build_dataset(words_shuffled[n1:n2])
+Xte, Yte = build_dataset(words_shuffled[n2:])
 print(f"Veri setleri -> train: {Xtr.shape[0]}, dev: {Xdev.shape[0]}, test: {Xte.shape[0]}\n")
 
 
 #görev 1
 #daha öncesinde elle yazdığımız işlemler büyük modellerde mantıklı değil bu yüzden her katmanı bir sınıf haline getiriyoruz.
 class Linear:
-#x @ W + b işlemini yapıyor.
+    #x @ W + b işlemini yapıyor.
     def __init__(self, fan_in, fan_out, bias=True):
-        self.weight = torch.randn((fan_in, fan_out)) / fan_in ** 0.5  #biraz sadeleştirilmiş kaiming init
+        self.weight = torch.randn((fan_in, fan_out)) / fan_in ** 0.5 #biraz sadeleştirilmiş kaiming init
         self.bias = torch.zeros(fan_out) if bias else None
 
     def __call__(self, x):
@@ -73,8 +73,13 @@ class BatchNorm1d:
 
     def __call__(self, x):
         if self.training:
-            xmean = x.mean(0, keepdim=True)  # Şimdilik sadece 0. boyutta (batch)
-            xvar = x.var(0, keepdim=True)
+            #görev 4 eklemesi: 3 boyut için mean hesabı düzeltmesi
+            if x.ndim==2:
+                dim=0
+            elif x.ndim==3:
+                dim=(0,1)
+            xmean = x.mean(dim, keepdim=True) # Şimdilik sadece 0. boyutta (batch)
+            xvar = x.var(dim, keepdim=True)
         else:
             xmean = self.running_mean
             xvar = self.running_var
@@ -84,8 +89,8 @@ class BatchNorm1d:
 
         if self.training:
             with torch.no_grad():
-                self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * xmean
-                self.running_var = (1 - self.momentum) * self.running_var + self.momentum * xvar
+                self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * xmean.squeeze()
+                self.running_var = (1 - self.momentum) * self.running_var + self.momentum * xvar.squeeze()
         return self.out
 
     def parameters(self):
@@ -104,7 +109,6 @@ class Tanh:
 
 #harfleri bilgisayarın anladığı vektörlere dönüştürüyor.
 class Embedding:
-
     def __init__(self, num_embeddings, embedding_dim):
         self.weight = torch.randn((num_embeddings, embedding_dim))
 
@@ -117,6 +121,23 @@ class Embedding:
 
 
 #bütün harfleri tek vektörde düzleştiriyoruz
+
+#görev 3 flatten class'ı
+#ikişerli birleştirme yapıyoruz
+class FlattenConsecutive:
+    def __init__(self, n):
+        self.n = n
+    def __call__(self, x):
+        B, T, C = x.shape
+        x = x.view(B, T//self.n, C*self.n)
+        if x.shape[1] == 1: #eğer gruplama sonucu tek grup kaldıysa (T/n) 1 ise B,1,C*n yerine B,C*n yapıyor.
+            x = x.squeeze(1)
+        self.out = x
+        return self.out
+    def parameters(self):
+        return []
+
+""" görev 2 flatten class'ı
 class Flatten:
     def __call__(self, x):
         self.out = x.view(x.shape[0], -1)
@@ -124,10 +145,9 @@ class Flatten:
 
     def parameters(self):
         return []
-
+"""
 
 class Sequential:
-
     def __init__(self, layers):
         self.layers = layers
 
@@ -144,11 +164,23 @@ class Sequential:
 
 #eğitim
 vocab_size = 27
-n_embd = 10
-n_hidden = 200
-block_size = 3
+n_embd = 24 #görev 5 güncellemesi
+n_hidden= 128 #wavenet'i yazarken total parametrenin değişmemesi için değiştiriyoruz.
+#n_hidden = 200 wavenet'ten önceki hidden layer sayısı
+block_size = 8
 
 #model tek bir Sequential kutusu oldu. eğitim döngüsü içeride ne olduğunu bilmiyor.
+#görev 3 değişikliği
+model = Sequential([
+    Embedding(vocab_size, n_embd),
+    # 8 harften başlıyoruz. Her FlattenConsecutive(2) T'yi yarıya indiriyor. 8-4-2-1
+    FlattenConsecutive(2), Linear(n_embd * 2, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
+    FlattenConsecutive(2), Linear(n_hidden * 2, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
+    FlattenConsecutive(2), Linear(n_hidden * 2, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
+    Linear(n_hidden, vocab_size)
+])
+
+"""
 model = Sequential([
     Embedding(vocab_size, n_embd),
     Flatten(),
@@ -157,6 +189,7 @@ model = Sequential([
     Tanh(),
     Linear(n_hidden, vocab_size)
 ])
+"""
 
 #tüm parametreleri bir araya toplayıp gradient hesabına açıyoruz.
 parameters = model.parameters()
@@ -165,7 +198,7 @@ for p in parameters:
     p.requires_grad = True
 
 #eğitim döngüsü
-max_steps = 200000
+"""max_steps = 200000
 batch_size = 32
 lossi = []
 
@@ -190,8 +223,8 @@ for i in range(max_steps):
         p.data -= lr * p.grad
 
     #her 10000 adımda bir yazdırıyoruz
-    """if i % 10000 == 0:
-        print(f'{i:7d}/{max_steps:7d}: {loss.item():.4f}')"""
+    if i % 10000 == 0:
+        print(f'{i:7d}/{max_steps:7d}: {loss.item():.4f}')
     lossi.append(loss.item()) #loss'ları ekliyoruz
 print(loss.item())
 
@@ -199,7 +232,7 @@ print(loss.item())
 plt.plot(torch.tensor(lossi).view(-1, 1000).mean(1))
 plt.title("Eğitim Kaybı (Training Loss)")
 plt.show()
-
+"""
 
 #modelleri karşılaştırmak için her modelin aynı koşulda ölçülmüş loss'u olmalı.
 #bu yüzden bütün veri setine bakıyoruz, rastgele tek bir minibatch'a değil.
@@ -217,20 +250,50 @@ def split_loss(split):
 split_loss('train')
 split_loss('dev')
 
-"""görev 1 çıktısı: 
-loss: 1.735083818435669 (bir minibatch'in)
-train 2.0629498958587646
-dev 2.352025270462036"""
 
-#görev 2: bağlamı 3 harften 8 harfe çıkarıyoruz
-"""görev 2 çıktısı:
-print(sum(p.nelement() for p in parameters)) : 22097 
-parametre sayısı 10000 arttı.
-Flatten katmanının çıktısı 3*10'dan 8*10'a yükseldi. ilk Linear katmanının ağırlık matrisi de 30x200 boyutundan 80x200'e genişledi. 
-Bu 50 ek girişin her biri 200 nörona bağlandığı için 10000 yeni parametre eklenmiş oldu.
-loss: 1.7623770236968994 (bir minibatch'in)
-train 1.881604552268982
-dev 2.2543022632598877
+"""
+görev 1 çıktısı:
+loss: 1.735083818435669 (bir minibatch'in)
+train 2.063157796859741
+dev 2.108534336090088
 """
 
 
+#görev 2: bağlamı 3 harften 8 harfe çıkarıyoruz
+"""
+görev 2 çıktısı:
+print(sum(p.nelement() for p in parameters)) : 22097
+parametre sayısı 10000 arttı.
+Flatten katmanının çıktısı 3*10'dan 8*10'a yükseldi. ilk Linear katmanının ağırlık matrisi de 30x200 boyutundan 80x200'e genişledi.
+Bu 50 ek girişin her biri 200 nörona bağlandığı için 10000 yeni parametre eklenmiş oldu.
+loss: 1.7623770236968994 (bir minibatch'in)
+train 1.9293428659439087
+dev 2.0341591835021973
+"""
+
+Xb = Xtr[:32]
+print("--- Wavenet Şekilleri ---")
+x = Xb
+for layer in model.layers:
+    x = layer(x) # Veriyi sıradaki katmandan geçiriyoruz
+    print(f"{layer.__class__.__name__:18s} : {tuple(x.shape)}")
+
+
+"""
+görev 4 çıktısı:
+parametre sayısı: 22397
+
+(düzeltmeden önce)
+train 1.951644778251648
+dev 2.0326168537139893
+
+(düzelttikten sonra)
+train 1.9224072694778442
+dev 2.0241241455078125
+"""
+
+""" görev 5 çıktısı:
+parametre sayısı: 76579
+train 1.78825843334198
+dev 1.987218976020813
+"""
