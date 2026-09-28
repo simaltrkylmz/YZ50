@@ -163,12 +163,11 @@ class Sequential:
 
 
 #eğitim
-vocab_size = 27
 n_embd = 24 #görev 5 güncellemesi
 n_hidden= 128 #wavenet'i yazarken total parametrenin değişmemesi için değiştiriyoruz.
-#n_hidden = 200 wavenet'ten önceki hidden layer sayısı
-block_size = 8
+#n_hidden = 200 #wavenet'ten önceki hidden layer sayısı
 
+torch.manual_seed(42)
 #model tek bir Sequential kutusu oldu. eğitim döngüsü içeride ne olduğunu bilmiyor.
 #görev 3 değişikliği
 model = Sequential([
@@ -179,6 +178,7 @@ model = Sequential([
     FlattenConsecutive(2), Linear(n_hidden * 2, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
     Linear(n_hidden, vocab_size)
 ])
+
 
 """
 model = Sequential([
@@ -191,6 +191,7 @@ model = Sequential([
 ])
 """
 
+
 #tüm parametreleri bir araya toplayıp gradient hesabına açıyoruz.
 parameters = model.parameters()
 print(sum(p.nelement() for p in parameters)) # Toplam parametre sayısını yazdırır
@@ -198,9 +199,10 @@ for p in parameters:
     p.requires_grad = True
 
 #eğitim döngüsü
-"""max_steps = 200000
+max_steps = 200000
 batch_size = 32
 lossi = []
+
 
 for i in range(max_steps):
     #minibatch oluşturma
@@ -232,7 +234,7 @@ print(loss.item())
 plt.plot(torch.tensor(lossi).view(-1, 1000).mean(1))
 plt.title("Eğitim Kaybı (Training Loss)")
 plt.show()
-"""
+
 
 #modelleri karşılaştırmak için her modelin aynı koşulda ölçülmüş loss'u olmalı.
 #bu yüzden bütün veri setine bakıyoruz, rastgele tek bir minibatch'a değil.
@@ -253,22 +255,21 @@ split_loss('dev')
 
 """
 görev 1 çıktısı:
-loss: 1.735083818435669 (bir minibatch'in)
-train 2.063157796859741
-dev 2.108534336090088
+parametre sayısı: 12097
+train 2.0621190071105957
+dev 2.107567071914673
 """
-
 
 #görev 2: bağlamı 3 harften 8 harfe çıkarıyoruz
 """
 görev 2 çıktısı:
-print(sum(p.nelement() for p in parameters)) : 22097
+parametre sayısı: 22097
 parametre sayısı 10000 arttı.
 Flatten katmanının çıktısı 3*10'dan 8*10'a yükseldi. ilk Linear katmanının ağırlık matrisi de 30x200 boyutundan 80x200'e genişledi.
 Bu 50 ek girişin her biri 200 nörona bağlandığı için 10000 yeni parametre eklenmiş oldu.
 loss: 1.7623770236968994 (bir minibatch'in)
-train 1.9293428659439087
-dev 2.0341591835021973
+train 1.9282917976379395
+dev 2.030041217803955
 """
 
 Xb = Xtr[:32]
@@ -284,16 +285,18 @@ görev 4 çıktısı:
 parametre sayısı: 22397
 
 (düzeltmeden önce)
-train 1.951644778251648
-dev 2.0326168537139893
+train 1.9531000852584839
+dev 2.0360381603240967
+running mean'in boyutu: torch.Size([4, 68])
 
 (düzelttikten sonra)
-train 1.9224072694778442
-dev 2.0241241455078125
+train 1.9236152172088623
+dev 2.025803565979004
+running mean'in boyutu: torch.Size([68])
 """
 
 """ görev 5 çıktısı:
 parametre sayısı: 76579
-train 1.78825843334198
-dev 1.987218976020813
+train 1.7869821786880493
+dev 1.9925611019134521
 """
