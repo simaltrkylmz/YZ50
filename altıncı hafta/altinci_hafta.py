@@ -78,7 +78,7 @@ class BatchNorm1d:
                 dim=0
             elif x.ndim==3:
                 dim=(0,1)
-            xmean = x.mean(dim, keepdim=True) # Şimdilik sadece 0. boyutta (batch)
+            xmean = x.mean(dim, keepdim=True)
             xvar = x.var(dim, keepdim=True)
         else:
             xmean = self.running_mean
@@ -267,7 +267,6 @@ parametre sayısı: 22097
 parametre sayısı 10000 arttı.
 Flatten katmanının çıktısı 3*10'dan 8*10'a yükseldi. ilk Linear katmanının ağırlık matrisi de 30x200 boyutundan 80x200'e genişledi.
 Bu 50 ek girişin her biri 200 nörona bağlandığı için 10000 yeni parametre eklenmiş oldu.
-loss: 1.7623770236968994 (bir minibatch'in)
 train 1.9282917976379395
 dev 2.030041217803955
 """
@@ -278,6 +277,25 @@ x = Xb
 for layer in model.layers:
     x = layer(x) # Veriyi sıradaki katmandan geçiriyoruz
     print(f"{layer.__class__.__name__:18s} : {tuple(x.shape)}")
+
+"""
+görev 3 çıktısı:
+--- Wavenet Şekilleri ---
+Embedding          : (32, 8, 24)
+FlattenConsecutive : (32, 4, 48)
+Linear             : (32, 4, 128)
+BatchNorm1d        : (32, 4, 128)
+Tanh               : (32, 4, 128)
+FlattenConsecutive : (32, 2, 256)
+Linear             : (32, 2, 128)
+BatchNorm1d        : (32, 2, 128)
+Tanh               : (32, 2, 128)
+FlattenConsecutive : (32, 256)
+Linear             : (32, 128)
+BatchNorm1d        : (32, 128)
+Tanh               : (32, 128)
+Linear             : (32, 27)
+"""
 
 
 """
