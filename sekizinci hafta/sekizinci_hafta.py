@@ -12,6 +12,7 @@ eval_interval = 1000  # kaç adımda bir loss yazdırılacak
 eval_iters = 200      # loss ortalaması için kaç batch kullanılacak
 learning_rate = 1e-3
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(device)
 
 #veri düzenleme
 with open('input.txt', 'r', encoding='utf-8') as f:
@@ -93,17 +94,20 @@ class FeedForward(nn.Module):
 class Block(nn.Module):
 #transformer bloğu: önce iletişim (attention), sonra hesaplama (feedforward)
 
-    def __init__(self, n_embd, n_head,residual=False):
+    def __init__(self, n_embd, n_head,residual=False, layernorm=False):
         super().__init__()
         head_size = n_embd // n_head
         self.sa = MultiHeadAttention(n_head, head_size)
         self.ffwd = FeedForward(n_embd)
         self.residual = residual
+        #LayerNorm kapalıysa Identity girdiyi hiç değiştirmeden geri veriyor
+        self.ln1 = nn.LayerNorm(n_embd) if layernorm else nn.Identity()
+        self.ln2 = nn.LayerNorm(n_embd) if layernorm else nn.Identity()
 
     def forward(self, x):
         if self.residual:
-            x = x + self.sa(x)      # x'e attention'ın düzeltmesini ekle
-            x = x + self.ffwd(x)    # x'e feedforward'ın düzeltmesini ekle
+            x = x + self.sa(self.ln1(x))      #önce normalize edip sonra attention uyguluyoruz
+            x = x + self.ffwd(self.ln2(x))      #önce normalize edip sonra feedforward uyguluyoruz
         else:
             x = self.sa(x) #residual'dan öncesi. direkt eski hali yok oluyor.
             x = self.ffwd(x)
@@ -112,15 +116,16 @@ class Block(nn.Module):
 class TransformerModel(nn.Module):
 #blokları üst üste dizen model
 
-    def __init__(self, n_head, n_layer,residual=False):
+    def __init__(self, n_head, n_layer,residual=False, layernorm=False):
         super().__init__()
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
         self.blocks = nn.Sequential(
-            Block(n_embd, n_head, residual),
-            Block(n_embd, n_head, residual),
-            Block(n_embd, n_head, residual),
+            Block(n_embd, n_head, residual, layernorm),
+            Block(n_embd, n_head, residual, layernorm),
+            Block(n_embd, n_head, residual, layernorm),
         )
+        self.ln_f = nn.LayerNorm(n_embd) if layernorm else nn.Identity()
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
@@ -129,6 +134,7 @@ class TransformerModel(nn.Module):
         pos_emb = self.position_embedding_table(torch.arange(T, device=device))  # (T, n_embd)
         x = tok_emb + pos_emb                                                    # (B, T, n_embd)
         x = self.blocks(x)                                                       # (B, T, n_embd)
+        x = self.ln_f(x)
         logits = self.lm_head(x)                                                 # (B, T, vocab_size)
         return logits, hesapla_loss(logits, targets)
 
@@ -255,11 +261,14 @@ sonuclar['+ feedforward'] = train(HeadAttention(n_head=4, ff=True), '+ feedforwa
 #residual olmadan bloklar
 torch.manual_seed(1337)
 sonuclar['3 blok'] = train(TransformerModel(n_head=4, n_layer=3), '3 blok (residual yok)')
-"""
+
 #residual eklendikten sonra
 torch.manual_seed(1337)
 sonuclar['+ residual'] = train(TransformerModel(n_head=4, n_layer=3, residual=True), '3 blok + residual')
 
+torch.manual_seed(1337)
+sonuclar['+ LayerNorm'] = train(TransformerModel(n_head=4, n_layer=3, residual=True, layernorm=True), '3 blok + residual + LayerNorm')
+"""
 #sonuçlar
 print(f"{'model':<20} | {'val loss':>8}")
 print("-" * 32)
