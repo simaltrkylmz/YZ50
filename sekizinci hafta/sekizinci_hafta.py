@@ -241,7 +241,7 @@ def generate(model, max_new_tokens=300):
 
 #
 sonuclar = {}
-"""
+
 # her modelden önce aynı seed: hepsi aynı koşullarda başlasın
 torch.manual_seed(1337)
 sonuclar['bigram'] = train(BigramLanguageModel(), 'bigram')
@@ -268,7 +268,7 @@ sonuclar['+ residual'] = train(TransformerModel(n_head=4, n_layer=3, residual=Tr
 
 torch.manual_seed(1337)
 sonuclar['+ LayerNorm'] = train(TransformerModel(n_head=4, n_layer=3, residual=True, layernorm=True), '3 blok + residual + LayerNorm')
-"""
+
 #sonuçlar
 print(f"{'model':<20} | {'val loss':>8}")
 print("-" * 32)
