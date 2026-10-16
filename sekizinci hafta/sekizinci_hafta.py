@@ -253,9 +253,9 @@ torch.manual_seed(1337)
 model_multi = HeadAttention(n_head=4)
 sonuclar['multi-head'] = train(model_multi, 'multi-head (4 x 8)')
 print("\nmulti-head modelinin yazdığı metin:")
-print(generate(model_multi))"""
+print(generate(model_multi))
 
-"""torch.manual_seed(1337)
+torch.manual_seed(1337)
 sonuclar['+ feedforward'] = train(HeadAttention(n_head=4, ff=True), '+ feedforward')
 
 #residual olmadan bloklar
