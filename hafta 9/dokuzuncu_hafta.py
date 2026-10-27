@@ -6,7 +6,7 @@ import tiktoken
 #unicode her karaktere bir numara veriyor. utf-8 de bu numarayı byte'lara çeviriyor.
 #utf-8 tasarlanırken eski İngilizce karakter sistemiyle uyumlu olsun diye ilk 128 numara İngilizce harflere ve temel işaretlere ayrıldı.
 #Türkçe harfler de bu ilk 128'in dışında kaldığı için 2 byte'a ihtiyaç duyuyorlar.
-#bu tablo sürekli değişiyor, yeni karakterler ekleniyor. ayrıca 150binden fazla karakter barındırıyor. direkt vocab olarak kullanmak bu yüzden kötü bir fikir.
+#bu tablo sürekli değişiyor, yeni karakterler ekleniyor. ayrıca 150 binden fazla karakter barındırıyor. direkt vocab olarak kullanmak bu yüzden kötü bir fikir.
 sentence = "Bu kış soğuk geçecek diyorlar"
 
 for char in sentence:
